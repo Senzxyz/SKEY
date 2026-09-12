@@ -129,7 +129,7 @@
         <div class="bg-[#111827] border border-zinc-800 w-full max-w-sm p-6 rounded-3xl shadow-2xl relative neon-glow text-center">
             <h3 id="modal-title" class="text-base font-extrabold text-pink-400 mb-2">Notification</h3>
             <p id="modal-message" class="text-xs text-zinc-300 mb-6 leading-relaxed">Message here...</p>
-            <button onclick="closeModal()" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer text-white shadow-md">Confirm</button>
+            <button id="modal-confirm-btn" onclick="closeModal()" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer text-white shadow-md">Confirm</button>
         </div>
     </div>
 
@@ -156,9 +156,15 @@
         const LINKVERTISE_URL = "https://link-target.net/7950760/vsAnb7PqtP96";
         const WORKINK_URL = "https://work.ink/2XLb/senzy-hub-get-key";
 
-        function showModal(title, message, callback = null) {
+        function showModal(title, message, callback = null, hideBtn = false) {
             document.getElementById('modal-title').innerText = title;
             document.getElementById('modal-message').innerText = message;
+            const btn = document.getElementById('modal-confirm-btn');
+            if (hideBtn) {
+                btn.classList.add('hidden');
+            } else {
+                btn.classList.remove('hidden');
+            }
             const modal = document.getElementById('custom-modal');
             modal.classList.remove('hidden');
 
@@ -182,6 +188,29 @@
             return id;
         }
         let hwid = getDeviceHwid();
+
+        // ตรวจสอบระบบแบน Anti-Bypass 15 นาที
+        function checkBypassBan() {
+            let banUntil = localStorage.getItem('senzy_bypass_ban');
+            if (banUntil) {
+                let timeLeft = parseInt(banUntil) - Date.now();
+                if (timeLeft > 0) {
+                    let mins = Math.floor(timeLeft / 60000);
+                    let secs = Math.floor((timeLeft % 60000) / 1000);
+                    showModal("⛔ Anti-Bypass Triggered", `Detected bypassing or unauthorized jump! You are locked out and cannot proceed for another ${mins}m ${secs}s.`, null, true);
+                    return true;
+                } else {
+                    localStorage.removeItem('senzy_bypass_ban');
+                }
+            }
+            return false;
+        }
+
+        function triggerBypassBan() {
+            let banTime = Date.now() + 15 * 60 * 1000; // ล็อก 15 นาที
+            localStorage.setItem('senzy_bypass_ban', banTime.toString());
+            checkBypassBan();
+        }
 
         function setGenMode(mode) {
             genMode = mode;
@@ -221,6 +250,11 @@
         }
 
         async function initApp() {
+            if (checkBypassBan()) {
+                setInterval(checkBypassBan, 1000);
+                return;
+            }
+
             try {
                 const res = await fetch('/api');
                 const config = await res.json();
@@ -275,9 +309,31 @@
                 }
 
                 let { data: sessionData } = await db.from('sessions').select('*').eq('hwid', hwid).single();
+                
+                // ตรวจสอบการพยายาม Bypass (ถ้าจู่ๆ มีพารามิเตอร์ขากลับหรือรีเฟรชหน้าโดยไม่มีเซสชันในระบบ)
+                const urlParams = new URLSearchParams(window.location.search);
+                const hasToken = urlParams.has('linkvertise-token') || urlParams.has('r') || urlParams.has('token');
+
                 if (!sessionData) {
+                    if (hasToken) {
+                        // มี Token ลอยมาแต่ไม่มีเซสชันบันทึกไว้ -> โดนจับว่า Bypass ชัวร์!
+                        triggerBypassBan();
+                        return;
+                    }
                     renderServiceSelectorUI();
                 } else {
+                    if (hasToken || sessionData.step > 0) {
+                        let nextStep = sessionData.step + 1;
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                        
+                        if (nextStep > 4) {
+                            await finalizeKeyGeneration();
+                            return;
+                        } else {
+                            await db.from('sessions').update({ step: nextStep }).eq('hwid', hwid);
+                            sessionData.step = nextStep;
+                        }
+                    }
                     renderCheckpointUI(sessionData.step, sessionData.service);
                 }
 
@@ -350,14 +406,6 @@
                 showModal("Authentication Required", "Please login with Discord first!");
                 return;
             }
-
-            let nextStep = step + 1;
-            if (nextStep > 4) {
-                await finalizeKeyGeneration();
-                return;
-            }
-
-            await db.from('sessions').update({ step: nextStep }).eq('hwid', hwid);
             window.location.href = targetUrl;
         }
 
