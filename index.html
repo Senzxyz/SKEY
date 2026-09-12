@@ -57,10 +57,10 @@
     </div>
 
     <script>
-        // ใส่ค่า Supabase URL และ Anon Key ของมึงตรงนี้
-        const SUPABASE_URL = "https://mydgdxlzpjvxeyvuhwzs.supabase.co";
-        const SUPABASE_ANON_KEY = "ใส่_Anon_Key_ของมึงตรงนี้";
-        const ADMIN_DISCORD_ID = "ใส่_Discord_ID_แอดมินของมึงตรงนี้";
+        // ดึงค่าจาก Env ผ่าน Vercel Runtime Injection หรือถ้าเทสในเครื่องให้ใส่ค่าสำรองไว้
+        const SUPABASE_URL = window.ENV_SUPABASE_URL || "https://mydgdxlzpjvxeyvuhwzs.supabase.co";
+        const SUPABASE_ANON_KEY = window.ENV_SUPABASE_ANON_KEY || "ใส่_Anon_Key_สำรองถ้าเทสในเครื่อง";
+        const ADMIN_DISCORD_ID = window.ENV_ADMIN_DISCORD_ID || "ใส่_Admin_ID_สำรองถ้าเทสในเครื่อง";
 
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         const urlParams = new URLSearchParams(window.location.search);
