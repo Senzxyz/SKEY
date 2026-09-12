@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Senzy</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/senzxyz2xxx/SenzyHub/refs/heads/main/senz2.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #0b0f19; }
+        .neon-glow { box-shadow: 0 0 50px rgba(236, 72, 153, 0.15), 0 0 100px rgba(168, 85, 247, 0.1); }
+        .btn-glow:hover { box-shadow: 0 0 25px rgba(236, 72, 153, 0.4); }
+        .spin { animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        button:disabled { opacity: 0.55; cursor: not-allowed !important; }
+    </style>
+</head>
+<body class="text-zinc-100 flex flex-col items-center justify-center min-h-screen relative overflow-x-hidden selection:bg-pink-500 selection:text-white p-4">
+
+    <!-- Background Neon Glow -->
+    <div class="absolute -top-32 -left-32 w-96 h-96 bg-pink-600/15 rounded-full blur-[140px] pointer-events-none"></div>
+    <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-purple-600/15 rounded-full blur-[140px] pointer-events-none"></div>
+
+    <!-- Topbar: Profile / Login -->
+    <div class="absolute top-5 right-5 flex items-center gap-3 z-30" id="auth-action-btn">
+        <button onclick="loginWithDiscord()" class="bg-[#5865F2]/20 border border-[#5865F2]/40 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#5865F2] hover:bg-[#5865F2]/30 transition cursor-pointer flex items-center gap-1.5">
+            <span>Login with Discord</span>
+        </button>
+    </div>
+
+    <!-- Main Card -->
+    <div class="bg-[#111827]/80 backdrop-blur-2xl p-7 rounded-3xl shadow-2xl w-full max-w-lg border border-zinc-800/80 relative z-10 neon-glow">
+
+        <!-- Header & Logo -->
+        <div class="flex items-center justify-between pb-5 border-b border-zinc-800/80 mb-5">
+            <div class="flex items-center gap-3">
+                <div class="relative">
+                    <div class="absolute -inset-0.5 bg-gradient-to-r from-pink-500 to-purple-600 rounded-xl blur opacity-70"></div>
+                    <img src="https://raw.githubusercontent.com/senzxyz2xxx/SenzyHub/refs/heads/main/senz2.png" alt="Logo" class="relative w-12 h-12 object-contain rounded-xl bg-zinc-950 border border-zinc-800 p-1.5">
+                </div>
+                <div>
+                    <span class="text-[10px] uppercase tracking-widest text-zinc-500 font-bold block">Service</span>
+                    <h1 class="text-lg font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400 tracking-tight">SenzyHub</h1>
+                </div>
+            </div>
+            <a href="https://discord.gg/rhPgnAJE4B" target="_blank" class="text-xs text-zinc-400 hover:text-white transition flex items-center gap-1 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-xl">
+                <span>HOW TO GET KEY?</span>
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            </a>
+        </div>
+
+        <!-- Global error banner -->
+        <div id="error-banner" class="hidden mb-4 bg-red-500/10 border border-red-500/30 text-red-300 text-xs font-semibold px-4 py-3 rounded-2xl"></div>
+
+        <!-- Admin / User Tabs -->
+        <div id="admin-tabs-container" class="hidden flex gap-2 mb-5 pb-3 border-b border-zinc-800/80">
+            <button onclick="switchTab('key-system')" id="tab-key-btn" class="flex-1 bg-pink-600 text-white text-xs font-bold py-2 rounded-xl transition cursor-pointer">Key System</button>
+            <button onclick="switchTab('admin-panel')" id="tab-admin-btn" class="flex-1 bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold py-2 rounded-xl transition cursor-pointer">Admin Panel</button>
+        </div>
+
+        <!-- Key System View -->
+        <div id="view-key-system">
+            <div class="flex items-center gap-2 mb-6">
+                <span id="checkpoint-badge" class="bg-pink-500/10 border border-pink-500/20 text-pink-400 text-xs font-bold px-3 py-1 rounded-lg">HUB GATEWAY</span>
+                <span id="checkpoint-status" class="text-xs text-zinc-400 font-medium">LOADING</span>
+            </div>
+
+            <!-- Daily Push -->
+            <div class="bg-zinc-950/60 border border-zinc-800/60 p-4 rounded-2xl mb-6">
+                <span class="text-[10px] uppercase tracking-wider text-zinc-500 font-bold block mb-1">DAILY PUSH</span>
+                <p class="text-xs text-zinc-300 italic font-medium">"Discipline beats motivation. You showed up; that already puts you ahead."</p>
+            </div>
+
+            <!-- Content Box -->
+            <div id="content-box">
+                <div class="flex items-center justify-center gap-2 py-6 text-zinc-500 text-xs">
+                    <svg class="w-4 h-4 spin" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    <span>Loading your status...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Panel View -->
+        <div id="view-admin-panel" class="hidden">
+            <div class="mb-4">
+                <span class="text-xs text-pink-400 font-bold block mb-2">Create Custom Key (Starts with SKEYX - 15 Chars)</span>
+
+                <div class="flex gap-2 mb-3">
+                    <button onclick="setGenMode('auto')" id="mode-auto-btn" class="flex-1 bg-pink-600 text-white text-xs font-semibold py-1.5 rounded-xl cursor-pointer">Auto Generate</button>
+                    <button onclick="setGenMode('manual')" id="mode-manual-btn" class="flex-1 bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-semibold py-1.5 rounded-xl cursor-pointer">Manual Input</button>
+                </div>
+
+                <div id="manual-input-box" class="hidden mb-2">
+                    <input type="text" id="custom-key-input" placeholder="Suffix after SKEYX (letters/numbers only)" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-pink-500">
+                </div>
+
+                <div class="flex gap-2 mb-3">
+                    <div class="flex-1">
+                        <label class="text-[11px] text-zinc-400 block mb-1">Key Duration:</label>
+                        <select id="key-duration-select" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-pink-500">
+                            <option value="12hours">12 Hours</option>
+                            <option value="7days">7 Days</option>
+                            <option value="permanent">Permanent</option>
+                        </select>
+                    </div>
+                    <div class="w-24">
+                        <label class="text-[11px] text-zinc-400 block mb-1">Devices:</label>
+                        <input type="number" id="key-max-devices-input" min="1" value="1" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-pink-500">
+                    </div>
+                </div>
+
+                <button onclick="createCustomKey()" id="create-key-btn" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer text-white shadow-md">Create Key</button>
+            </div>
+
+            <!-- Stats -->
+            <div id="admin-stats-bar" class="grid grid-cols-3 gap-2 mb-3">
+                <div class="bg-zinc-950/60 border border-zinc-800/60 p-2.5 rounded-xl text-center">
+                    <div id="stat-total" class="text-sm font-extrabold text-white">-</div>
+                    <div class="text-[9px] uppercase tracking-wider text-zinc-500">Total</div>
+                </div>
+                <div class="bg-zinc-950/60 border border-zinc-800/60 p-2.5 rounded-xl text-center">
+                    <div id="stat-active" class="text-sm font-extrabold text-pink-400">-</div>
+                    <div class="text-[9px] uppercase tracking-wider text-zinc-500">Active</div>
+                </div>
+                <div class="bg-zinc-950/60 border border-zinc-800/60 p-2.5 rounded-xl text-center">
+                    <div id="stat-expired" class="text-sm font-extrabold text-zinc-500">-</div>
+                    <div class="text-[9px] uppercase tracking-wider text-zinc-500">Expired</div>
+                </div>
+            </div>
+
+            <input type="text" id="admin-key-search" oninput="renderAdminKeysTable()" placeholder="Search key string or owner..." class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white mb-3 focus:outline-none focus:border-pink-500">
+
+            <div class="max-h-52 overflow-y-auto border border-zinc-800 rounded-xl bg-zinc-950/40 mb-3">
+                <table class="w-full text-left">
+                    <tr class="border-b border-zinc-800 text-xs text-zinc-500 bg-zinc-900/80 sticky top-0">
+                        <th class="p-2.5">Key String</th>
+                        <th class="p-2.5">Status</th>
+                        <th class="p-2.5">Devices</th>
+                        <th class="p-2.5 text-right">Actions</th>
+                    </tr>
+                    <tbody id="admin-keys-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Device list modal (admin: view / force-unbind devices on a key) -->
+        <div id="devices-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-[#111827] border border-zinc-800 w-full max-w-sm p-6 rounded-3xl shadow-2xl relative neon-glow">
+                <div class="flex items-center justify-between pb-4 border-b border-zinc-800 mb-4">
+                    <h3 class="text-base font-extrabold text-pink-400">Bound Devices</h3>
+                    <button onclick="closeDevicesModal()" class="text-zinc-400 hover:text-white font-bold cursor-pointer">✕</button>
+                </div>
+                <div id="devices-modal-content" class="text-xs text-zinc-300 space-y-2 max-h-60 overflow-y-auto"></div>
+                <button onclick="closeDevicesModal()" class="mt-6 w-full bg-zinc-800 hover:bg-zinc-700 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer text-zinc-200">Close</button>
+            </div>
+        </div>
+
+        <!-- Reset HWID View (paste-key style, mirrors the "key active / copy key" box) -->
+        <div id="view-reset-hwid" class="hidden">
+            <div class="flex items-center gap-2 mb-6">
+                <span class="bg-pink-500/10 border border-pink-500/20 text-pink-400 text-xs font-bold px-3 py-1 rounded-lg">RESET HWID</span>
+                <span class="text-xs text-zinc-400 font-medium">Once every 6 hours</span>
+            </div>
+            <p class="text-xs text-zinc-400 mb-4 leading-relaxed">Paste the key bound to this device below, then press Reset HWID to unbind it and free it up for a new device.</p>
+            <input type="text" id="reset-hwid-key-input" placeholder="Paste your key (SKEYX...)" class="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3 text-xs font-mono text-pink-400 mb-3 focus:outline-none focus:border-pink-500 text-center">
+            <button id="reset-hwid-btn" onclick="doResetHwid()" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white py-3.5 rounded-2xl font-bold transition duration-300 shadow-lg shadow-pink-500/20 btn-glow cursor-pointer mb-3">Reset HWID</button>
+            <button onclick="closeResetHwidView()" class="w-full bg-zinc-800 hover:bg-zinc-700 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer text-zinc-200">Back</button>
+        </div>
+
+        <!-- Footer -->
+        <div id="main-footer" class="mt-6 pt-4 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-500">
+            <button onclick="openResetHwidView()" class="hover:text-zinc-300 transition underline decoration-zinc-700 cursor-pointer">Reset HWID (6h Cooldown)</button>
+            <span id="hwid-status-label" class="font-mono text-[10px] text-pink-500">Device ID: Loading...</span>
+        </div>
+    </div>
+
+    <div class="mt-6 text-xs text-zinc-500 flex items-center gap-1.5 z-20">
+        <span>Need help?</span>
+        <a href="https://discord.gg/rhPgnAJE4B" target="_blank" class="text-pink-400 hover:text-pink-300 font-semibold transition underline decoration-pink-500/40">Join our Discord</a>
+    </div>
+
+    <!-- Custom Modal Popup System -->
+    <div id="custom-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-[#111827] border border-zinc-800 w-full max-w-sm p-6 rounded-3xl shadow-2xl relative neon-glow text-center">
+            <h3 id="modal-title" class="text-base font-extrabold text-pink-400 mb-2">Notification</h3>
+            <p id="modal-message" class="text-xs text-zinc-300 mb-6 leading-relaxed">Message here...</p>
+            <div class="flex gap-2">
+                <button id="modal-cancel-btn" onclick="cancelModal()" class="hidden flex-1 bg-zinc-800 hover:bg-zinc-700 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer text-zinc-200">Cancel</button>
+                <button id="modal-confirm-btn" onclick="closeModal()" class="flex-1 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer text-white shadow-md">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MyKey Dashboard Modal -->
+    <div id="dashboard-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-[#111827] border border-zinc-800 w-full max-w-md p-6 rounded-3xl shadow-2xl relative neon-glow">
+            <div class="flex items-center justify-between pb-4 border-b border-zinc-800 mb-4">
+                <h3 class="text-base font-extrabold text-pink-400">MyKey Dashboard (Max 3 Keys)</h3>
+                <button onclick="closeDashboard()" class="text-zinc-400 hover:text-white font-bold cursor-pointer">✕</button>
+            </div>
+            <div id="dashboard-content" class="text-xs text-zinc-300 space-y-3">
+                <p class="text-zinc-500">Loading your key history...</p>
+            </div>
+            <button onclick="closeDashboard()" class="mt-6 w-full bg-zinc-800 hover:bg-zinc-700 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer text-zinc-200">Close</button>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // Config / state
+        // ============================================================
+        let db;
+        let ADMIN_DISCORD_ID = "";
+        let currentUser = null;
+        let genMode = 'auto';
+        let countdownIntervalId = null;
+        let busy = false; // simple global lock to stop double-submits
+
+        const LINKVERTISE_URL = "https://link-target.net/7950760/vsAnb7PqtP96";
+        const WORKINK_URL = "https://work.ink/2XLb/senzy-hub-get-key";
+
+        // Domains a "return from gateway" navigation is expected to come from.
+        // Used only as a *signal*, never as the sole source of truth, because
+        // referrers can legitimately be blocked by privacy-focused browsers.
+        const GATEWAY_HOSTS = ['linkvertise.com', 'link-target.net', 'work.ink'];
+
+        // Query params Supabase / OAuth can attach on redirect back to us.
+        // These must never be mistaken for "returned from an ad gateway".
+        const OAUTH_PARAMS = ['code', 'error', 'error_description', 'state', 'provider'];
+
+        // If a checkpoint step was set this long ago and there's no plausible
+        // signal that the user actually just came back from a gateway, we
+        // treat the run as abandoned and reset back to the service selector.
+        // Without this, senzy_step lives in localStorage forever and a user
+        // who closes the tab mid-flow gets stuck re-seeing the same
+        // checkpoint days later instead of starting fresh.
+        const FLOW_STALE_MS = 20 * 60 * 1000; // 20 minutes
+
+        // ============================================================
+        // Small utilities
+        // ============================================================
+
+        // Escapes any string before it is placed into innerHTML. Anything that
+        // ends up on screen and originated from a database row, Discord profile
+        // metadata, or user input MUST go through this first.
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str === null || str === undefined ? '' : String(str);
+            return div.innerHTML;
+        }
+
+        function showError(message) {
+            const el = document.getElementById('error-banner');
+            el.textContent = message;
+            el.classList.remove('hidden');
+        }
+
+        function clearError() {
+            document.getElementById('error-banner').classList.add('hidden');
+        }
+
+        // Plain notification popup (single "Confirm" button). Replaces old alert().
+        function showModal(title, message, callback = null, hideBtn = false) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-message').innerText = message;
+            document.getElementById('modal-cancel-btn').classList.add('hidden');
+            const btn = document.getElementById('modal-confirm-btn');
+            btn.classList.toggle('hidden', hideBtn);
+            btn.innerText = 'Confirm';
+            document.getElementById('custom-modal').classList.remove('hidden');
+            window.modalCallback = callback;
+            window.modalCancelCallback = null;
+        }
+
+        // Yes/No popup. Replaces old confirm(). onConfirm fires on Confirm,
+        // onCancel (optional) fires on Cancel or the ✕/backdrop-less close.
+        function showConfirm(title, message, onConfirm, onCancel = null, confirmLabel = 'Confirm') {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-message').innerText = message;
+            const cancelBtn = document.getElementById('modal-cancel-btn');
+            const confirmBtn = document.getElementById('modal-confirm-btn');
+            cancelBtn.classList.remove('hidden');
+            confirmBtn.classList.remove('hidden');
+            confirmBtn.innerText = confirmLabel;
+            document.getElementById('custom-modal').classList.remove('hidden');
+            window.modalCallback = onConfirm;
+            window.modalCancelCallback = onCancel;
+        }
+
+        function closeModal() {
+            document.getElementById('custom-modal').classList.add('hidden');
+            if (typeof window.modalCallback === 'function') {
+                window.modalCallback();
+            }
+            window.modalCallback = null;
+            window.modalCancelCallback = null;
+        }
+
+        function cancelModal() {
+            document.getElementById('custom-modal').classList.add('hidden');
+            if (typeof window.modalCancelCallback === 'function') {
+                window.modalCancelCallback();
+            }
+            window.modalCallback = null;
+            window.modalCancelCallback = null;
+        }
+
+        // Returns the real Discord snowflake ID, consistently, everywhere.
+        // (Previously the code mixed this up with Supabase's internal auth
+        // UUID depending on which function you looked at.)
+        function getDiscordId(user) {
+            if (!user) return null;
+            return user.user_metadata?.provider_id || user.identities?.[0]?.id || user.id;
+        }
+
+        function getDeviceHwid() {
+            let id = localStorage.getItem('senzy_device_hwid');
+            if (!id) {
+                id = 'DEV-' + Math.random().toString(36).substring(2, 10).toUpperCase() + '-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+                localStorage.setItem('senzy_device_hwid', id);
+            }
+            return id;
+        }
+        let hwid = getDeviceHwid();
+
+        function withBusyGuard(button, fn) {
+            return async (...args) => {
+                if (busy) return;
+                busy = true;
+                if (button) button.disabled = true;
+                try {
+                    await fn(...args);
+                } finally {
+                    busy = false;
+                    if (button) button.disabled = false;
+                }
+            };
+        }
+
+        // ============================================================
+        // Gateway-return detection (previously "hasToken" — replaced)
+        // ============================================================
+        // Old logic treated ANY non-empty query string as proof of returning
+        // from an ad gateway. That both (a) locked out real users the moment
+        // Supabase appended its own `?code=...` after Discord login, and
+        // (b) let anyone skip every checkpoint by typing "?x=1" in the URL.
+        //
+        // New logic: never punishes ambiguous cases. It only auto-advances a
+        // step when there's a plausible signal (referrer from a known
+        // gateway domain + enough time elapsed since we sent the user away).
+        // If the signal is missing, we simply re-show the same step — no ban.
+
+        // Calls /api/verify-checkpoint (Vercel function) which checks the
+        // Linkvertise Anti-Bypassing token server-side before trusting a
+        // "gateway completed" claim. Returns null on network failure so the
+        // caller can fall back to the client-side heuristic.
+        async function verifyCheckpointServerSide(token, service, currentStep) {
+            try {
+                const res = await fetch('/api/verify-checkpoint', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token, service, hwid, currentStep, userId: currentUser?.id || null })
+                });
+                if (!res.ok) return null;
+                return await res.json(); // { ok, step, error? }
+            } catch {
+                return null;
+            }
+        }
+
+        function cameFromGatewayReferrer() {
+            try {
+                if (!document.referrer) return false;
+                const host = new URL(document.referrer).hostname.replace(/^www\./, '');
+                return GATEWAY_HOSTS.some(h => host === h || host.endsWith('.' + h));
+            } catch {
+                return false;
+            }
+        }
+
+        function stripOAuthParams(params) {
+            const clone = new URLSearchParams(params);
+            OAUTH_PARAMS.forEach(p => clone.delete(p));
+            return clone;
+        }
+
+        function looksLikePlausibleGatewayReturn() {
+            const pendingSince = parseInt(localStorage.getItem('senzy_pending_since') || '0', 10);
+            if (!pendingSince) return false;
+            const elapsed = Date.now() - pendingSince;
+            const MIN_PLAUSIBLE_MS = 4000; // a real ad view takes at least a few seconds
+            return elapsed > MIN_PLAUSIBLE_MS && cameFromGatewayReferrer();
+        }
+
+        // ============================================================
+        // UI mode toggles
+        // ============================================================
+        function setGenMode(mode) {
+            genMode = mode;
+            const autoBtn = document.getElementById('mode-auto-btn');
+            const manualBtn = document.getElementById('mode-manual-btn');
+            const inputBox = document.getElementById('manual-input-box');
+
+            if (mode === 'auto') {
+                autoBtn.className = "flex-1 bg-pink-600 text-white text-xs font-semibold py-1.5 rounded-xl cursor-pointer";
+                manualBtn.className = "flex-1 bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-semibold py-1.5 rounded-xl cursor-pointer";
+                inputBox.classList.add('hidden');
+            } else {
+                manualBtn.className = "flex-1 bg-pink-600 text-white text-xs font-semibold py-1.5 rounded-xl cursor-pointer";
+                autoBtn.className = "flex-1 bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-semibold py-1.5 rounded-xl cursor-pointer";
+                inputBox.classList.remove('hidden');
+            }
+        }
+
+        function switchTab(tab) {
+            const keyView = document.getElementById('view-key-system');
+            const adminView = document.getElementById('view-admin-panel');
+            const keyBtn = document.getElementById('tab-key-btn');
+            const adminBtn = document.getElementById('tab-admin-btn');
+
+            if (tab === 'key-system') {
+                keyView.classList.remove('hidden');
+                adminView.classList.add('hidden');
+                keyBtn.className = "flex-1 bg-pink-600 text-white text-xs font-bold py-2 rounded-xl transition cursor-pointer";
+                adminBtn.className = "flex-1 bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold py-2 rounded-xl transition cursor-pointer";
+            } else {
+                adminView.classList.remove('hidden');
+                keyView.classList.add('hidden');
+                adminBtn.className = "flex-1 bg-pink-600 text-white text-xs font-bold py-2 rounded-xl transition cursor-pointer";
+                keyBtn.className = "flex-1 bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold py-2 rounded-xl transition cursor-pointer";
+                loadAdminKeys();
+            }
+        }
+
+        // ============================================================
+        // App init
+        // ============================================================
+        async function initApp() {
+            try {
+                const res = await fetch('/api');
+                if (!res.ok) throw new Error('Config endpoint returned ' + res.status);
+                const config = await res.json();
+
+                if (!config.supabaseUrl || !config.supabaseAnonKey) {
+                    showError("Service configuration is missing. Please contact support.");
+                    return;
+                }
+
+                ADMIN_DISCORD_ID = config.adminUuid;
+                db = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+
+                if (window.location.hash && window.location.hash.includes('access_token')) {
+                    window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+                }
+
+                const { data: { session } } = await db.auth.getSession();
+                const authBtnDiv = document.getElementById('auth-action-btn');
+
+                if (session && session.user) {
+                    currentUser = session.user;
+                    const metadata = currentUser.user_metadata || {};
+                    const rawUsername = metadata.full_name || metadata.name || metadata.custom_name || metadata.preferred_username || currentUser.email?.split('@')[0] || 'User';
+                    const username = escapeHtml(rawUsername);
+                    const rawAvatar = metadata.avatar_url || metadata.picture || metadata.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(rawUsername)}&background=ec4899&color=fff&bold=true`;
+                    const avatar = escapeHtml(rawAvatar);
+
+                    authBtnDiv.innerHTML = `
+                        <div class="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-2xl text-xs font-semibold text-zinc-200 shadow-lg">
+                            <div onclick="openDashboard()" class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition" title="Open MyKey Dashboard">
+                                <img src="${avatar}" class="w-5 h-5 rounded-full object-cover border border-zinc-700">
+                                <span class="max-w-[80px] truncate underline decoration-pink-500/50">${username}</span>
+                            </div>
+                            <button onclick="logoutUser()" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 px-2 py-1 rounded-xl transition cursor-pointer font-bold border border-red-500/20">Sign Out</button>
+                        </div>
+                    `;
+
+                    const discordId = getDiscordId(currentUser);
+                    if (ADMIN_DISCORD_ID && String(discordId) === String(ADMIN_DISCORD_ID)) {
+                        document.getElementById('admin-tabs-container').classList.remove('hidden');
+                    }
+                }
+
+                document.getElementById('hwid-status-label').innerText = "Device: " + hwid.substring(0, 12) + "...";
+
+                let { data: existingKey } = await db.from('keys').select('*').eq('hwid', hwid).single();
+
+                if (existingKey && existingKey.key_string) {
+                    const isExpired = existingKey.expires_at && new Date(existingKey.expires_at) < new Date();
+                    if (!isExpired) {
+                        renderKeyActiveUI(existingKey.key_string, existingKey.expires_at);
+                        return;
+                    } else {
+                        await db.from('keys').delete().eq('hwid', hwid);
+                        await db.from('sessions').delete().eq('hwid', hwid);
+                        clearFlowState();
+                    }
+                }
+
+                let localStep = parseInt(localStorage.getItem('senzy_step') || '0', 10);
+                let localService = localStorage.getItem('senzy_service') || '';
+
+                let { data: sessionData } = await db.from('sessions').select('*').eq('hwid', hwid).single();
+                if (sessionData && sessionData.step > localStep) {
+                    localStep = sessionData.step;
+                    localService = sessionData.service;
+                    localStorage.setItem('senzy_step', localStep.toString());
+                    localStorage.setItem('senzy_service', localService);
+                }
+
+                // If a checkpoint run was started but abandoned (tab closed,
+                // came back days later, etc.) and there's no real sign the
+                // user is actually returning from a gateway right now, drop
+                // the stale run and send them back to the service selector
+                // instead of showing them stuck on the same old step forever.
+                if (localStep > 0) {
+                    const setAt = parseInt(localStorage.getItem('senzy_step_set_at') || '0', 10);
+                    const isStale = !setAt || (Date.now() - setAt > FLOW_STALE_MS);
+                    if (isStale && !looksLikePlausibleGatewayReturn()) {
+                        await db.from('sessions').delete().eq('hwid', hwid);
+                        clearFlowState();
+                        localStep = 0;
+                        localService = '';
+                    }
+                }
+
+                if (localStep === 0) {
+                    // Nobody has started a gateway run yet. Any query params here
+                    // (OAuth code, a manually typed param, etc.) are just noise —
+                    // never treat this as a bypass attempt or ban the visitor.
+                    renderServiceSelectorUI();
+                } else {
+                    const cleanParams = stripOAuthParams(new URLSearchParams(window.location.search));
+                    const returnAttempted = cleanParams.toString().length > 0 || looksLikePlausibleGatewayReturn();
+
+                    // If Linkvertise's Anti-Bypassing token came back on the URL,
+                    // trust the server verdict over the client-side referrer
+                    // heuristic below — see /api/verify-checkpoint.js. Falls back
+                    // to the heuristic (e.g. for Work.ink, which doesn't send one).
+                    const bypassToken = cleanParams.get('token');
+                    let serverVerified = null;
+                    if (bypassToken) {
+                        serverVerified = await verifyCheckpointServerSide(bypassToken, localService, localStep);
+                    }
+
+                    if (serverVerified && serverVerified.ok) {
+                        localStep = serverVerified.step;
+                        localStorage.setItem('senzy_step', localStep.toString());
+                        localStorage.setItem('senzy_step_set_at', Date.now().toString());
+                        localStorage.removeItem('senzy_pending_since');
+                        window.history.replaceState({}, document.title, window.location.pathname);
+
+                        if (localStep > TOTAL_STEPS) {
+                            await finalizeKeyGeneration();
+                            return;
+                        }
+                    } else if (serverVerified && !serverVerified.ok) {
+                        // Token present but rejected (already used / invalid) —
+                        // don't advance, don't ban, just re-show this step.
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                        showError(serverVerified.error || "Couldn't verify that gateway completion. Please try the step again.");
+                    } else if (returnAttempted && looksLikePlausibleGatewayReturn()) {
+                        localStep += 1;
+                        localStorage.setItem('senzy_step', localStep.toString());
+                        localStorage.setItem('senzy_step_set_at', Date.now().toString());
+                        localStorage.removeItem('senzy_pending_since');
+                        window.history.replaceState({}, document.title, window.location.pathname);
+
+                        if (localStep > TOTAL_STEPS) {
+                            await finalizeKeyGeneration();
+                            return;
+                        }
+                        await db.from('sessions').upsert([{ hwid, step: localStep, service: localService, user_id: currentUser?.id || null }]);
+                    } else if (returnAttempted) {
+                        // Something came back (extra params) but it doesn't look like
+                        // a genuine gateway return. Don't ban — just re-show the step
+                        // and clean the URL so it isn't confusing.
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    }
+
+                    renderCheckpointUI(localStep, localService);
+                }
+            } catch (err) {
+                console.error("Init Error:", err);
+                showError("Couldn't load the service right now. Please refresh the page in a moment.");
+            }
+        }
+
+        function clearFlowState() {
+            localStorage.removeItem('senzy_step');
+            localStorage.removeItem('senzy_service');
+            localStorage.removeItem('senzy_pending_since');
+            localStorage.removeItem('senzy_step_set_at');
+        }
+
+        // ============================================================
+        // Gateway flow rendering
+        // ============================================================
+        function renderServiceSelectorUI() {
+            clearError();
+            document.getElementById('checkpoint-badge').innerText = "HUB GATEWAY";
+            document.getElementById('checkpoint-status').innerText = "SELECT SERVICE (2 STEPS)";
+
+            const contentBox = document.getElementById('content-box');
+            contentBox.innerHTML = `
+                <div class="text-xs text-zinc-300 font-semibold mb-3 text-center">Select your gateway service (Total 2 steps):</div>
+                <div class="space-y-3">
+                    <button onclick="selectService('linkvertise', '${LINKVERTISE_URL}')" class="w-full bg-zinc-900 border border-zinc-800 hover:border-pink-500/50 p-4 rounded-2xl flex items-center justify-between transition group cursor-pointer">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-xl bg-pink-500/10 border border-pink-500/30 flex items-center justify-center text-pink-400 font-bold text-xs">LV</div>
+                            <div class="text-left">
+                                <div class="text-xs font-bold text-white group-hover:text-pink-400 transition">Linkvertise Gateway</div>
+                                <div class="text-[10px] text-zinc-500">1 Extra Gateway + 1 Checkpoint</div>
+                            </div>
+                        </div>
+                        <svg class="w-4 h-4 text-zinc-500 group-hover:text-pink-400 transition" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                    <button onclick="selectService('workink', '${WORKINK_URL}')" class="w-full bg-zinc-900 border border-zinc-800 hover:border-purple-500/50 p-4 rounded-2xl flex items-center justify-between transition group cursor-pointer">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 font-bold text-xs">WI</div>
+                            <div class="text-left">
+                                <div class="text-xs font-bold text-white group-hover:text-purple-400 transition">Work.ink Gateway</div>
+                                <div class="text-[10px] text-zinc-500">1 Extra Gateway + 1 Checkpoint</div>
+                            </div>
+                        </div>
+                        <svg class="w-4 h-4 text-zinc-500 group-hover:text-purple-400 transition" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                </div>
+            `;
+        }
+
+        async function selectService(serviceName, targetUrl) {
+            if (!currentUser) {
+                showModal("Authentication Required", "Please login with Discord first!");
+                return;
+            }
+            localStorage.setItem('senzy_step', '1');
+            localStorage.setItem('senzy_service', serviceName);
+            localStorage.setItem('senzy_pending_since', Date.now().toString());
+            localStorage.setItem('senzy_step_set_at', Date.now().toString());
+            await db.from('sessions').upsert([{ hwid, step: 1, service: serviceName, user_id: currentUser.id }]);
+            window.location.href = targetUrl;
+        }
+
+        const TOTAL_STEPS = 2; // was 4 — selecting a service is step 1, one gateway round is step 2
+
+        function renderCheckpointUI(cpStep, serviceName) {
+            document.getElementById('checkpoint-badge').innerText = `STEP ${cpStep} / ${TOTAL_STEPS}`;
+            document.getElementById('checkpoint-status').innerText = "IN PROGRESS";
+
+            const contentBox = document.getElementById('content-box');
+            let targetUrl = serviceName === 'workink' ? WORKINK_URL : LINKVERTISE_URL;
+            let btnText = cpStep >= TOTAL_STEPS ? "Complete Final Step & Get Key" : `Complete Step ${cpStep} ->`;
+
+            contentBox.innerHTML = `
+                <button onclick="startCheckpoint('${targetUrl}')" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white py-3.5 rounded-2xl font-bold transition duration-300 shadow-lg shadow-pink-500/20 btn-glow cursor-pointer flex items-center justify-center gap-2 text-sm">
+                    <span>${btnText}</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                </button>
+                <p class="text-[10px] text-zinc-500 text-center mt-3">Complete the page fully — coming back too quickly won't count.</p>
+            `;
+        }
+
+        async function startCheckpoint(targetUrl) {
+            if (!currentUser) {
+                showModal("Authentication Required", "Please login with Discord first!");
+                return;
+            }
+            localStorage.setItem('senzy_pending_since', Date.now().toString());
+            window.location.href = targetUrl;
+        }
+
+        async function finalizeKeyGeneration() {
+            if (!currentUser) {
+                showModal("Error", "User session not found!");
+                return;
+            }
+
+            const discordId = getDiscordId(currentUser);
+            let { data: userKeys, error: fetchError } = await db.from('keys').select('*').eq('discord_id', discordId);
+            if (fetchError) console.error("Fetch Error:", fetchError.message);
+
+            if (userKeys && userKeys.length >= 3) {
+                showModal("Limit Reached", "You have reached the maximum limit of 3 keys per Discord account!", () => location.reload());
+                await db.from('sessions').delete().eq('hwid', hwid);
+                clearFlowState();
+                return;
+            }
+
+            let { data: existingDevice } = await db.from('keys').select('*').eq('hwid', hwid).single();
+            if (existingDevice && existingDevice.key_string && (!existingDevice.expires_at || new Date(existingDevice.expires_at) > new Date())) {
+                renderKeyActiveUI(existingDevice.key_string, existingDevice.expires_at);
+                return;
+            }
+
+            const randomPart = Math.random().toString(36).substring(2, 12).toUpperCase();
+            let newKey = ("SKEYX" + randomPart).substring(0, 15);
+            const expireTime = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
+
+            const payload = {
+                hwid,
+                key_string: newKey,
+                step: TOTAL_STEPS,
+                is_permanent: false,
+                expires_at: expireTime,
+                discord_id: String(discordId),
+                user_id: currentUser.id
+            };
+
+            let error;
+            if (existingDevice) {
+                ({ error } = await db.from('keys').update(payload).eq('hwid', hwid));
+            } else {
+                ({ error } = await db.from('keys').insert([payload]));
+            }
+            if (error) {
+                showModal("Database Error", error.message);
+                return;
+            }
+
+            await db.from('sessions').delete().eq('hwid', hwid);
+            clearFlowState();
+            renderKeyActiveUI(newKey, expireTime);
+        }
+
+        function renderKeyActiveUI(keyString, expiresAt) {
+            document.getElementById('checkpoint-badge').innerText = "SUCCESS";
+            document.getElementById('checkpoint-status').innerText = "KEY ACTIVE";
+
+            const safeKey = escapeHtml(keyString);
+            const contentBox = document.getElementById('content-box');
+            contentBox.innerHTML = `
+                <div class="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl font-mono text-pink-400 mb-3 select-all break-all text-center text-sm shadow-inner">${safeKey}</div>
+                <button id="copy-key-btn" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white py-3.5 rounded-2xl font-bold transition duration-300 shadow-lg shadow-pink-500/20 btn-glow cursor-pointer mb-3">Copy Key</button>
+                <div class="text-center text-xs text-zinc-400 bg-zinc-900/50 border border-zinc-800 py-2.5 rounded-xl">
+                    ⏳ Expires in: <span id="countdown-timer" class="font-mono text-pink-400 font-bold">Calculating...</span>
+                </div>
+            `;
+            document.getElementById('copy-key-btn').addEventListener('click', () => {
+                navigator.clipboard.writeText(keyString);
+                showModal('Success', 'Key copied to clipboard successfully!');
+            });
+
+            if (expiresAt) {
+                startCountdown(expiresAt);
+            } else {
+                document.getElementById('countdown-timer').innerText = 'Never (Permanent)';
+            }
+        }
+
+        function startCountdown(expireDateStr) {
+            if (countdownIntervalId) clearInterval(countdownIntervalId);
+            const expireTime = new Date(expireDateStr).getTime();
+
+            countdownIntervalId = setInterval(async () => {
+                const distance = expireTime - Date.now();
+                if (distance < 0) {
+                    clearInterval(countdownIntervalId);
+                    countdownIntervalId = null;
+                    const timerEl = document.getElementById('countdown-timer');
+                    if (timerEl) timerEl.innerText = "EXPIRED";
+                    await db.from('keys').delete().eq('hwid', hwid);
+                    clearFlowState();
+                    showModal("Expired", "Your key has expired! Please generate a new key.", () => location.reload());
+                    return;
+                }
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                const timerEl = document.getElementById('countdown-timer');
+                if (timerEl) timerEl.innerText = `${hours}h ${minutes}m ${seconds}s`;
+            }, 1000);
+        }
+
+        // ============================================================
+        // Reset HWID (paste-key flow)
+        // Calls the server-side activate_key_device RPC (security definer,
+        // see accompanying SQL) which enforces the real 6h cooldown itself —
+        // it can't be reset by clearing localStorage. This device (current
+        // browser's hwid) becomes the key's only bound device afterward.
+        // ============================================================
+        function openResetHwidView() {
+            document.getElementById('view-key-system').classList.add('hidden');
+            document.getElementById('view-admin-panel').classList.add('hidden');
+            document.getElementById('admin-tabs-container').classList.add('hidden');
+            document.getElementById('main-footer').classList.add('hidden');
+            document.getElementById('view-reset-hwid').classList.remove('hidden');
+        }
+
+        function closeResetHwidView() {
+            document.getElementById('view-reset-hwid').classList.add('hidden');
+            document.getElementById('main-footer').classList.remove('hidden');
+            document.getElementById('view-key-system').classList.remove('hidden');
+            const discordId = getDiscordId(currentUser);
+            if (ADMIN_DISCORD_ID && currentUser && String(discordId) === String(ADMIN_DISCORD_ID)) {
+                document.getElementById('admin-tabs-container').classList.remove('hidden');
+            }
+        }
+
+        async function doResetHwid() {
+            const input = document.getElementById('reset-hwid-key-input');
+            const rawKey = input.value.trim().toUpperCase();
+            if (!rawKey) {
+                showModal("Warning", "Please paste your key first!");
+                return;
+            }
+
+            const btn = document.getElementById('reset-hwid-btn');
+            await withBusyGuard(btn, async () => {
+                const { data, error } = await db.rpc('activate_key_device', { p_key_string: rawKey, p_hwid: hwid });
+
+                if (error) {
+                    showModal("Error", error.message);
+                    return;
+                }
+                if (!data.success) {
+                    if (data.retry_after_seconds) {
+                        const hoursLeft = Math.ceil(data.retry_after_seconds / 3600);
+                        showModal("Cooldown", `This key already reset a device recently. Try again in about ${hoursLeft}h.`);
+                    } else {
+                        showModal("Error", data.error || "Couldn't reset HWID for that key.");
+                    }
+                    return;
+                }
+
+                if (data.mode === 'already_active') {
+                    showModal("Already Active", "This key is already bound to this device — nothing to reset.", () => closeResetHwidView());
+                } else {
+                    showModal("Success", `HWID reset! This key now runs on ${data.devices_used}/${data.max_devices} device(s).`, () => { closeResetHwidView(); location.reload(); });
+                }
+                input.value = '';
+            })();
+        }
+
+        // ============================================================
+        // Dashboard (per-user key history)
+        // ============================================================
+        async function openDashboard() {
+            if (!currentUser) {
+                showModal("Authentication Required", "Please login with Discord first!");
+                return;
+            }
+            const modal = document.getElementById('dashboard-modal');
+            const content = document.getElementById('dashboard-content');
+            modal.classList.remove('hidden');
+            content.innerHTML = `<p class="text-zinc-400">Loading your key history...</p>`;
+
+            const discordId = getDiscordId(currentUser);
+            let { data: keys, error } = await db.from('keys').select('*').eq('discord_id', discordId).order('id', { ascending: false });
+
+            if (error) {
+                content.innerHTML = `<p class="text-red-400">Couldn't load your keys right now.</p>`;
+                return;
+            }
+
+            if (keys && keys.length > 0) {
+                let html = `<div class="space-y-2 max-h-60 overflow-y-auto">`;
+                keys.forEach(k => {
+                    let expireText = k.expires_at ? new Date(k.expires_at).toLocaleString() : 'Permanent';
+                    let isExpired = k.expires_at && new Date(k.expires_at) < new Date();
+                    html += `
+                        <div class="bg-zinc-950 border border-zinc-800 p-3 rounded-xl">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="font-mono text-pink-400 font-bold">${escapeHtml(k.key_string)}</span>
+                                <span class="text-[10px] px-2 py-0.5 rounded ${isExpired ? 'bg-red-500/10 text-red-400' : 'bg-pink-500/10 text-pink-400'}">${isExpired ? 'Expired' : 'Active'}</span>
+                            </div>
+                            <div class="text-[11px] text-zinc-400">Expires: ${escapeHtml(expireText)}</div>
+                            <div class="text-[10px] text-zinc-600 truncate">Device ID: ${escapeHtml(k.hwid)}</div>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+                content.innerHTML = html;
+            } else {
+                content.innerHTML = `<p class="text-zinc-500">No key history found in your account (Max 3 keys)</p>`;
+            }
+        }
+
+        function closeDashboard() {
+            document.getElementById('dashboard-modal').classList.add('hidden');
+        }
+
+        // ============================================================
+        // Auth
+        // ============================================================
+        async function loginWithDiscord() {
+            const { error } = await db.auth.signInWithOAuth({
+                provider: 'discord',
+                options: { redirectTo: window.location.origin }
+            });
+            if (error) showModal("Login Error", error.message);
+        }
+
+        async function logoutUser() {
+            await db.auth.signOut();
+            location.href = window.location.origin;
+        }
+
+        // ============================================================
+        // Admin panel
+        // Note: the UI only *hides* this tab from non-admins — the real
+        // enforcement now happens in Supabase RLS policies (see the SQL
+        // shared alongside this file). Without that, anyone could open
+        // devtools and call these functions directly.
+        // ============================================================
+        let adminKeysCache = [];
+        let adminDeviceCounts = {}; // key_id -> count
+
+        async function loadAdminKeys() {
+            let { data: keys, error } = await db.from('keys').select('*').order('id', { ascending: false });
+            if (error) {
+                console.error("Load Keys Error:", error.message);
+                document.getElementById('admin-keys-table-body').innerHTML =
+                    `<tr><td colspan="4" class="p-4 text-center text-red-400 text-xs">Couldn't load keys (check RLS policy / admin membership).</td></tr>`;
+                return;
+            }
+            adminKeysCache = keys || [];
+
+            // Device counts (key_devices policy lets admins read every row).
+            let { data: devices } = await db.from('key_devices').select('key_id');
+            adminDeviceCounts = {};
+            (devices || []).forEach(d => { adminDeviceCounts[d.key_id] = (adminDeviceCounts[d.key_id] || 0) + 1; });
+
+            const total = adminKeysCache.length;
+            const expiredCount = adminKeysCache.filter(k => k.expires_at && new Date(k.expires_at) < new Date()).length;
+            document.getElementById('stat-total').innerText = total;
+            document.getElementById('stat-active').innerText = total - expiredCount;
+            document.getElementById('stat-expired').innerText = expiredCount;
+
+            renderAdminKeysTable();
+        }
+
+        function renderAdminKeysTable() {
+            const query = (document.getElementById('admin-key-search')?.value || '').trim().toLowerCase();
+            const tbody = document.getElementById('admin-keys-table-body');
+            let list = adminKeysCache;
+            if (query) {
+                list = list.filter(k =>
+                    (k.key_string || '').toLowerCase().includes(query) ||
+                    (k.owner_username || '').toLowerCase().includes(query) ||
+                    (k.discord_id || '').toLowerCase().includes(query)
+                );
+            }
+
+            let rows = '';
+            if (list.length > 0) {
+                list.forEach(k => {
+                    let isExpired = k.expires_at && new Date(k.expires_at) < new Date();
+                    let deviceCount = adminDeviceCounts[k.id] || 0;
+                    let maxDevices = k.max_devices || 1;
+                    rows += `<tr class="border-b border-zinc-800/80 text-xs hover:bg-zinc-900/40 transition">
+                        <td class="p-2.5 font-mono text-pink-400 font-bold">${escapeHtml(k.key_string)}</td>
+                        <td class="p-2.5">
+                            <span class="text-[10px] px-2 py-0.5 rounded ${isExpired ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-pink-500/10 text-pink-400 border border-pink-500/20'}">
+                                ${isExpired ? 'Expired' : 'Active'}
+                            </span>
+                        </td>
+                        <td class="p-2.5">
+                            <button onclick="openDevicesModal('${k.id}')" class="text-[10px] text-zinc-300 hover:text-pink-400 underline decoration-zinc-700 cursor-pointer">${deviceCount}/${maxDevices}</button>
+                        </td>
+                        <td class="p-2.5 text-right flex items-center justify-end gap-1.5">
+                            <button onclick="copyKeyValue('${escapeHtml(k.key_string)}')" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer">Copy</button>
+                            <button onclick="deleteKey('${k.id}')" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer">Delete</button>
+                        </td>
+                    </tr>`;
+                });
+            } else {
+                rows = `<tr><td colspan="4" class="p-4 text-center text-zinc-500 text-xs">No keys match</td></tr>`;
+            }
+            tbody.innerHTML = rows;
+        }
+
+        function copyKeyValue(key) {
+            navigator.clipboard.writeText(key);
+            showModal('Success', 'Key copied to clipboard!');
+        }
+
+        // ------------------------------------------------------------
+        // Devices modal — view bound hwids for a key, force-unbind one
+        // ------------------------------------------------------------
+        async function openDevicesModal(keyId) {
+            const modal = document.getElementById('devices-modal');
+            const content = document.getElementById('devices-modal-content');
+            modal.classList.remove('hidden');
+            content.innerHTML = `<p class="text-zinc-500">Loading devices...</p>`;
+
+            let { data: devices, error } = await db.from('key_devices').select('*').eq('key_id', keyId).order('created_at', { ascending: false });
+            if (error) {
+                content.innerHTML = `<p class="text-red-400">Couldn't load devices.</p>`;
+                return;
+            }
+            if (!devices || devices.length === 0) {
+                content.innerHTML = `<p class="text-zinc-500">No devices bound to this key.</p>`;
+                return;
+            }
+
+            content.innerHTML = devices.map(d => `
+                <div class="flex items-center justify-between bg-zinc-950 border border-zinc-800 p-2.5 rounded-xl">
+                    <span class="font-mono text-[10px] text-zinc-300 truncate mr-2">${escapeHtml(d.hwid)}</span>
+                    <button onclick="unbindDevice(${d.id}, '${keyId}')" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-2 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer shrink-0">Unbind</button>
+                </div>
+            `).join('');
+        }
+
+        function closeDevicesModal() {
+            document.getElementById('devices-modal').classList.add('hidden');
+        }
+
+        function unbindDevice(deviceRowId, keyId) {
+            showConfirm("Unbind Device", "Force-remove this device from the key? The user will need to re-activate on it.", async () => {
+                const { error } = await db.from('key_devices').delete().eq('id', deviceRowId);
+                if (error) {
+                    showModal("Error", error.message);
+                    return;
+                }
+                await loadAdminKeys();
+                openDevicesModal(keyId);
+            }, null, "Unbind");
+        }
+
+        async function createCustomKey() {
+            const btn = document.getElementById('create-key-btn');
+            await withBusyGuard(btn, async () => {
+                let finalKey = "";
+                const durationType = document.getElementById('key-duration-select').value;
+
+                if (genMode === 'auto') {
+                    const randomPart = Math.random().toString(36).substring(2, 12).toUpperCase();
+                    finalKey = ("SKEYX" + randomPart).substring(0, 15);
+                } else {
+                    const rawInput = document.getElementById('custom-key-input').value.trim();
+                    // Only allow letters/numbers — the key gets rendered back into
+                    // the page later, so anything else is a potential XSS payload.
+                    const customVal = rawInput.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+                    if (!customVal) {
+                        showModal("Warning", "Please enter a valid key suffix (letters and numbers only)!");
+                        return;
+                    }
+                    finalKey = ("SKEYX" + customVal).substring(0, 15);
+                }
+
+                let expireTime = null;
+                let isPerm = false;
+                if (durationType === '12hours') {
+                    expireTime = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
+                } else if (durationType === '7days') {
+                    expireTime = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+                } else if (durationType === 'permanent') {
+                    isPerm = true;
+                }
+
+                const maxDevices = Math.max(1, parseInt(document.getElementById('key-max-devices-input').value, 10) || 1);
+
+                let { error } = await db.from('keys').insert([{
+                    key_string: finalKey,
+                    step: TOTAL_STEPS,
+                    is_permanent: isPerm,
+                    expires_at: expireTime,
+                    max_devices: maxDevices
+                }]);
+
+                if (error) {
+                    showModal("Error", error.message);
+                } else {
+                    showModal("Success", "Key created successfully: " + finalKey);
+                    document.getElementById('custom-key-input').value = "";
+                    loadAdminKeys();
+                }
+            })();
+        }
+
+        function deleteKey(id) {
+            showConfirm("Delete Key", "Are you sure you want to delete this key? This can't be undone.", async () => {
+                let { error } = await db.from('keys').delete().eq('id', id);
+                if (error) {
+                    showModal("Error", error.message);
+                } else {
+                    loadAdminKeys();
+                }
+            }, null, "Delete");
+        }
+
+        initApp();
+    </script>
+</body>
+</html>
