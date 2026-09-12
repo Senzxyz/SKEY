@@ -96,14 +96,21 @@
         }
 
         async function init() {
-            // ดึง session ล่าสุด (รวมถึงกรณีเพิ่ง redirect กลับมาจาก OAuth ด้วย)
-            const { data: { session }, error } = await db.auth.getSession();
+            // เคลียร์ URL ให้สะอาด ถ้ายมี token ยาวๆ ติดมาหลังบ้าน
+            if (window.location.hash && window.location.hash.includes('access_token')) {
+                window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+            }
+
+            const { data: { session } } = await db.auth.getSession();
             const authBtnDiv = document.getElementById('auth-action-btn');
 
             if (session && session.user) {
                 const user = session.user;
-                const username = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.preferred_username || 'User';
-                const avatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || 'https://cdn.jsdelivr.net/npm/@tabler/icons@latest/icons/user.svg';
+                const metadata = user.user_metadata || {};
+                
+                // ดึงชื่อและรูปโปรไฟล์จากทุกจุดที่ Discord ส่งมาให้
+                const username = metadata.full_name || metadata.name || metadata.custom_name || metadata.preferred_username || 'User';
+                const avatar = metadata.avatar_url || metadata.picture || metadata.avatar || 'https://cdn.jsdelivr.net/npm/@tabler/icons@latest/icons/user.svg';
                 
                 authBtnDiv.innerHTML = `
                     <div class="flex items-center gap-2 bg-zinc-900/80 border border-zinc-800 px-3 py-1.5 rounded-xl text-xs font-semibold text-zinc-200">
@@ -113,8 +120,7 @@
                     </div>
                 `;
 
-                // เช็คว่าเป็นแอดมินไหมจาก Provider ID หรือ identities
-                const discordId = user.identities?.[0]?.id || user.user_metadata?.provider_id || user.id;
+                const discordId = user.identities?.[0]?.id || metadata.provider_id || user.id;
                 if (ADMIN_DISCORD_ID && String(discordId) === String(ADMIN_DISCORD_ID)) {
                     renderAdminPanel(user);
                     return;
@@ -144,7 +150,7 @@
 
             statusText.innerText = t.checking;
 
-            let { data: existingKey, error: keyError } = await db
+            let { data: existingKey } = await db
                 .from('keys')
                 .select('*')
                 .eq('hwid', hwid)
@@ -259,7 +265,6 @@
             init();
         }
 
-        // รัน init ทันทีเมื่อโหลดหน้าเว็บเสร็จ
         init();
     </script>
 </body>
