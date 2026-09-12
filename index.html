@@ -6,7 +6,7 @@
     <title>SenzyHub - Premium Key System</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Supabase JS Library (ประกาศแค่ครั้งเดียวพอ!) -->
+    <!-- Supabase JS Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -62,7 +62,6 @@
         const SUPABASE_ANON_KEY = "ใส่_Anon_Key_ของมึงตรงนี้";
         const ADMIN_DISCORD_ID = "ใส่_Discord_ID_แอดมินของมึงตรงนี้";
 
-        // ประกาศตัวแปร supabase ครั้งเดียวจบ
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         const urlParams = new URLSearchParams(window.location.search);
         const hwid = urlParams.get('hwid');
@@ -246,7 +245,7 @@
 
         async function createCustomKey() {
             const val = document.getElementById('custom-key-input').value.trim();
-            if (!val) return alert("กรุณาใส่ชื่อคีย์!");
+            if (!val) return alert("กรุณาใส่ชื่อคีย์ให้ถูกต้อง!");
 
             let { error } = await supabase.from('keys').insert([{ key_string: val, step: 2 }]);
             if (error) alert("เกิดข้อผิดพลาด: " + error.message);
