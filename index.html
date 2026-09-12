@@ -8,27 +8,32 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Supabase JS Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Google Fonts: Plus Jakarta Sans -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
-        .neon-glow {
-            box-shadow: 0 0 40px rgba(236, 72, 153, 0.15), 0 0 80px rgba(168, 85, 247, 0.1);
-        }
-        .btn-glow:hover {
-            box-shadow: 0 0 25px rgba(236, 72, 153, 0.5);
-        }
+        .neon-glow { box-shadow: 0 0 40px rgba(236, 72, 153, 0.15), 0 0 80px rgba(168, 85, 247, 0.1); }
+        .btn-glow:hover { box-shadow: 0 0 25px rgba(236, 72, 153, 0.5); }
     </style>
 </head>
 <body class="bg-[#0b0f19] text-zinc-100 flex items-center justify-center min-h-screen relative overflow-hidden selection:bg-pink-500 selection:text-white">
 
-    <!-- แสงนีออนพื้นหลังชมพู-ม่วงฟุ้งๆ -->
+    <!-- แสงนีออนพื้นหลัง -->
     <div class="absolute -top-32 -left-32 w-96 h-96 bg-pink-600/20 rounded-full blur-[140px] pointer-events-none"></div>
     <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-purple-600/20 rounded-full blur-[140px] pointer-events-none"></div>
 
+    <!-- ปุ่มเปลี่ยนภาษา & แอดมินลอยอยู่มุมบน -->
+    <div class="absolute top-5 right-5 flex items-center gap-3 z-20">
+        <button onclick="toggleLang()" id="lang-btn" class="bg-zinc-900/80 border border-zinc-800 px-3 py-1.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white transition cursor-pointer">EN / TH</button>
+        <button onclick="loginWithDiscord()" class="bg-[#5865F2]/20 border border-[#5865F2]/40 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#5865F2] hover:bg-[#5865F2]/30 transition cursor-pointer flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.927 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+            <span data-translate="admin_btn">Admin Login</span>
+        </button>
+    </div>
+
+    <!-- กล่องหลัก -->
     <div class="bg-zinc-900/70 backdrop-blur-2xl p-8 rounded-3xl shadow-2xl w-full max-w-md border border-zinc-800/80 text-center relative z-10 neon-glow">
         
-        <!-- โลโก้ของคุณ (ขอบเรืองแสงชมพูม่วง) -->
+        <!-- โลโก้ -->
         <div class="flex justify-center mb-5">
             <div class="relative group">
                 <div class="absolute -inset-0.5 bg-gradient-to-r from-pink-500 to-purple-600 rounded-2xl blur opacity-70 group-hover:opacity-100 transition duration-300"></div>
@@ -36,46 +41,97 @@
             </div>
         </div>
 
-        <h1 class="text-2xl font-extrabold tracking-tight mb-1 text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400">SenzyHub Verification</h1>
-        <p id="status-text" class="text-zinc-400 text-sm mb-6">กำลังตรวจสอบ HWID เครื่องของคุณ...</p>
+        <h1 class="text-2xl font-extrabold tracking-tight mb-1 text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400">SenzyHub</h1>
+        <p id="status-text" class="text-zinc-400 text-sm mb-6">กำลังตรวจสอบระบบ...</p>
 
         <div id="content-box">
             <!-- คอนเทนต์แสดงผล -->
         </div>
 
-        <!-- ปุ่มซื้อคีย์ถาวร / ลิงก์เข้า Discord -->
         <div class="mt-8 pt-6 border-t border-zinc-800/80 text-xs text-zinc-500 flex items-center justify-center gap-1">
-            <span>สนใจซื้อคีย์ถาวร / 7 วัน?</span> 
-            <a href="https://discord.gg/ลิงก์ดิสวัดของมึง" target="_blank" class="text-pink-400 hover:text-pink-300 font-semibold transition underline decoration-pink-500/50">ติดต่อ Discord</a>
+            <span data-translate="footer_text">สนใจซื้อคีย์ถาวร / 7 วัน?</span> 
+            <a href="https://discord.gg/ลิงก์ดิสวัดของมึง" target="_blank" class="text-pink-400 hover:text-pink-300 font-semibold transition underline decoration-pink-500/50" data-translate="footer_link">ติดต่อ Discord</a>
         </div>
     </div>
 
-    <!-- โหลดไฟล์ Config แยก (สำหรับคนใช้ Git) หรือมึงใส่ค่าตรงนี้ได้เลย -->
     <script src="./config.js"></script>
-
     <script>
-        // เผื่อลืมสร้าง config.js ให้ใส่ค่าสำรองตรงนี้ได้ หรือดึงจาก window.ENV
-        const SUPABASE_URL = window.ENV ? window.ENV.SUPABASE_URL : "ใส่_URL_ตรงนี้ถ้าไม่ใช้ไฟล์ config";
-        const SUPABASE_ANON_KEY = window.ENV ? window.ENV.SUPABASE_ANON_KEY : "ใส่_ANON_KEY_ตรงนี้ถ้าไม่ใช้ไฟล์ config";
+        const SUPABASE_URL = window.ENV ? window.ENV.SUPABASE_URL : "";
+        const SUPABASE_ANON_KEY = window.ENV ? window.ENV.SUPABASE_ANON_KEY : "";
+        const ADMIN_DISCORD_ID = window.ENV ? window.ENV.ADMIN_DISCORD_ID : ""; // ดึงไอดีแอดมินจาก config หรือ Vercel
 
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const urlParams = new URLSearchParams(window.location.search);
         const hwid = urlParams.get('hwid');
 
-        const statusText = document.getElementById('status-text');
-        const contentBox = document.getElementById('content-box');
+        let currentLang = 'th';
+
+        const translations = {
+            th: {
+                checking: "กำลังตรวจสอบ HWID เครื่องของคุณ...",
+                no_hwid_title: "ไม่พบรหัสฮาร์ดแวร์ (HWID)",
+                no_hwid_desc: "กรุณารันสคริปต์จากในเกม Roblox แล้วกดปุ่ม <b>Get Key</b> เพื่อเข้าสู่ระบบผ่านลิงก์ที่ถูกต้องเท่านั้น!",
+                key_active: "คีย์ของคุณใช้งานได้ปกติ:",
+                copy_btn: "คัดลอกคีย์",
+                copied: "คัดลอกคีย์เรียบร้อย!",
+                step_text: "สถานะความคืบหน้า: ทำภารกิจรอบที่",
+                ad_btn: "ดูโฆษณารอบที่",
+                footer_text: "สนใจซื้อคีย์ถาวร / 7 วัน?",
+                footer_link: "ติดต่อ Discord",
+                admin_btn: "Admin Login"
+            },
+            en: {
+                checking: "Checking your device HWID...",
+                no_hwid_title: "HWID Not Found",
+                no_hwid_desc: "Please run the script inside Roblox and click the <b>Get Key</b> button to access via the correct link!",
+                key_active: "Your key is active:",
+                copy_btn: "Copy Key",
+                copied: "Key copied successfully!",
+                step_text: "Progress status: Task round",
+                ad_btn: "Watch Ad Round",
+                footer_text: "Want permanent / 7-day keys?",
+                footer_link: "Contact Discord",
+                admin_btn: "Admin Login"
+            }
+        };
+
+        function toggleLang() {
+            currentLang = currentLang === 'th' ? 'en' : 'th';
+            init();
+        }
 
         async function init() {
+            // เช็ค Session ล็อกอินปัจจุบันจาก Supabase Auth
+            const { data: { session } } = await supabase.auth.getSession();
+
+            if (session) {
+                const user = session.user;
+                const discordId = user.user_metadata?.provider_id || user.identities?.[0]?.id;
+
+                // เช็คว่าตรงกับไอดีแอดมินที่ตั้งไว้ไหม
+                if (ADMIN_DISCORD_ID && discordId === ADMIN_DISCORD_ID) {
+                    renderAdminPanel(user);
+                    return;
+                } else {
+                    alert("คุณไม่ใช่แอดมินระบบ!");
+                    await supabase.auth.signOut();
+                }
+            }
+
+            const t = translations[currentLang];
+
             if (!hwid) {
-                statusText.innerText = "ไม่พบรหัสฮาร์ดแวร์ (HWID)";
-                contentBox.innerHTML = `
-                    <div class="bg-pink-500/10 border border-pink-500/20 text-pink-300 p-4 rounded-2xl text-sm leading-relaxed">
-                        กรุณารันสคริปต์จากในเกม Roblox แล้วกดปุ่ม <b>Get Key</b> เพื่อเข้าสู่ระบบผ่านลิงก์ที่ถูกต้องเท่านั้น!
+                document.getElementById('status-text').innerText = t.no_hwid_title;
+                document.getElementById('content-box').innerHTML = `
+                    <div class="bg-pink-500/10 border border-pink-500/20 text-pink-300 p-4 rounded-2xl text-sm leading-relaxed mb-4">
+                        ${t.no_hwid_desc}
                     </div>
                 `;
                 return;
             }
+
+            document.getElementById('status-text').innerText = t.checking;
 
             let { data: existingKey, error } = await supabase
                 .from('keys')
@@ -84,19 +140,19 @@
                 .single();
 
             if (existingKey && existingKey.key_string && existingKey.key_string !== 'TEMP' && (!existingKey.expires_at || new Date(existingKey.expires_at) > new Date())) {
-                statusText.innerText = "คีย์ของคุณใช้งานได้ปกติ:";
-                contentBox.innerHTML = `
+                document.getElementById('status-text').innerText = t.key_active;
+                document.getElementById('content-box').innerHTML = `
                     <div class="bg-zinc-950/80 border border-zinc-800/80 p-4 rounded-2xl font-mono text-pink-400 mb-4 select-all break-all text-sm shadow-inner tracking-wider">${existingKey.key_string}</div>
-                    <button onclick="navigator.clipboard.writeText('${existingKey.key_string}'); alert('คัดลอกคีย์เรียบร้อย!')" class="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 py-3.5 rounded-2xl font-bold transition duration-300 shadow-lg shadow-pink-500/25 btn-glow cursor-pointer text-white">คัดลอกคีย์</button>
+                    <button onclick="navigator.clipboard.writeText('${existingKey.key_string}'); alert('${t.copied}')" class="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 py-3.5 rounded-2xl font-bold transition duration-300 shadow-lg shadow-pink-500/25 btn-glow cursor-pointer text-white">${t.copy_btn}</button>
                 `;
             } else {
                 let step = existingKey ? existingKey.step : 0;
-                statusText.innerText = `สถานะความคืบหน้า: ทำภารกิจรอบที่ ${step}/2`;
+                document.getElementById('status-text').innerText = `${t.step_text} ${step}/2`;
 
                 if (step === 0 || step === 1) {
-                    contentBox.innerHTML = `
+                    document.getElementById('content-box').innerHTML = `
                         <button onclick="doLink(${step + 1})" class="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 py-3.5 rounded-2xl font-bold transition duration-300 shadow-lg shadow-pink-500/25 btn-glow cursor-pointer text-white flex items-center justify-center gap-2">
-                            <span>ดูโฆษณารอบที่ ${step + 1} (Linkvertise)</span>
+                            <span>${t.ad_btn} ${step + 1} (Linkvertise)</span>
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                         </button>
                     `;
@@ -124,8 +180,85 @@
                 }
             }
 
-            alert("ผ่านลิงก์สำเร็จ! กำลังโหลดหน้าคีย์...");
+            alert("ผ่านลิงก์สำเร็จ!");
             location.reload();
+        }
+
+        // --- ฟังก์ชันเรียกล็อกอิน Discord ผ่าน Supabase Auth ---
+        async function loginWithDiscord() {
+            const { data, error } = await supabase.auth.signInWithOAuth({
+                provider: 'discord',
+                options: {
+                    redirectTo: window.location.origin
+                }
+            });
+            if (error) alert("Login Error: " + error.message);
+        }
+
+        // --- แดชบอร์ดแอดมิน ---
+        async function renderAdminPanel(user) {
+            document.getElementById('status-text').innerText = `Admin Dashboard (${user.user_metadata?.full_name || 'Owner'})`;
+            
+            let { data: keys, error } = await supabase.from('keys').select('*').order('id', { ascending: false });
+
+            let rows = '';
+            if (keys) {
+                keys.forEach(k => {
+                    rows += `<tr class="border-b border-zinc-800 text-xs">
+                        <td class="p-2 font-mono text-pink-400">${k.key_string}</td>
+                        <td class="p-2 text-zinc-400 truncate max-w-[100px]">${k.hwid || 'Custom Key'}</td>
+                        <td class="p-2"><button onclick="deleteKey('${k.id}')" class="text-red-400 hover:text-red-300">ลบ</button></td>
+                    </tr>`;
+                });
+            }
+
+            document.getElementById('content-box').innerHTML = `
+                <div class="mb-4 text-left">
+                    <label class="text-xs text-zinc-400 block mb-1">สร้าง Custom Key (ถาวร)</label>
+                    <input type="text" id="custom-key-input" placeholder="ใส่ชื่อคีย์ เช่น SENZ-PRO-xxxx" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white mb-2">
+                    <button onclick="createCustomKey()" class="w-full bg-pink-600 hover:bg-pink-500 py-2 rounded-xl text-xs font-bold transition cursor-pointer">สร้างคีย์นี้</button>
+                </div>
+                <div class="max-h-48 overflow-y-auto border border-zinc-800 rounded-xl mb-4">
+                    <table class="w-full text-left">
+                        <tr class="border-b border-zinc-800 text-xs text-zinc-500 bg-zinc-950">
+                            <th class="p-2">Key</th>
+                            <th class="p-2">HWID</th>
+                            <th class="p-2">Action</th>
+                        </tr>
+                        ${rows}
+                    </table>
+                </div>
+                <button onclick="logoutAdmin()" class="w-full bg-zinc-800 hover:bg-zinc-700 py-2 rounded-xl text-xs font-semibold transition cursor-pointer">ออกจากระบบแอดมิน</button>
+            `;
+        }
+
+        async function createCustomKey() {
+            const val = document.getElementById('custom-key-input').value.trim();
+            if (!val) return alert("กรุณาใส่ชื่อคีย์!");
+
+            let { error } = await supabase.from('keys').insert([{
+                key_string: val,
+                step: 2
+            }]);
+
+            if (error) {
+                alert("เกิดข้อผิดพลาด: " + error.message);
+            } else {
+                alert("สร้างคีย์สำเร็จ!");
+                init();
+            }
+        }
+
+        async function deleteKey(id) {
+            if (!confirm("ต้องการลบคีย์นี้ใช่ไหม?")) return;
+            await supabase.from('keys').delete().eq('id', id);
+            init();
+        }
+
+        async function logoutAdmin() {
+            await supabase.auth.signOut();
+            alert("ออกจากระบบเรียบร้อย!");
+            location.href = window.location.origin;
         }
 
         init();
