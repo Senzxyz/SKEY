@@ -56,13 +56,13 @@
         </div>
     </div>
 
-    <!-- Vercel จะช่วยแปะค่าพวกนี้ให้อัตโนมัติ ปลอดภัย 100% -->
     <script>
-        const SUPABASE_URL = "<!--%SUPABASE_URL%-->" || window.env_supabase_url || "";
-        const SUPABASE_ANON_KEY = "<!--%SUPABASE_ANON_KEY%-->" || window.env_supabase_anon_key || "";
-        const ADMIN_DISCORD_ID = "<!--%ADMIN_DISCORD_ID%-->" || window.env_admin_id || "";
+        // ใส่ค่า Supabase URL และ Anon Key ของมึงตรงนี้
+        const SUPABASE_URL = "https://mydgdxlzpjvxeyvuhwzs.supabase.co";
+        const SUPABASE_ANON_KEY = "ใส่_Anon_Key_ของมึงตรงนี้";
+        const ADMIN_DISCORD_ID = "ใส่_Discord_ID_แอดมินของมึงตรงนี้";
 
-        // ถ้าเทสในเครื่องแล้วขี้เกียจเซต Env ให้เติมค่าดัมบ์ตรงนี้ชั่วคราวได้ (แต่เวลาขึ้น Vercel มันจะดึงจาก Env จริง)
+        // ประกาศตัวแปร supabase ครั้งเดียวจบ ไม่ให้ซ้ำซ้อน
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         const urlParams = new URLSearchParams(window.location.search);
         const hwid = urlParams.get('hwid');
