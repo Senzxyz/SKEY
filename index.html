@@ -101,12 +101,12 @@
                 <button onclick="createCustomKey()" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer text-white shadow-md">Create Key</button>
             </div>
 
-            <div class="max-h-48 overflow-y-auto border border-zinc-800 rounded-xl bg-zinc-950/40 mb-3">
+            <div class="max-h-52 overflow-y-auto border border-zinc-800 rounded-xl bg-zinc-950/40 mb-3">
                 <table class="w-full text-left">
                     <tr class="border-b border-zinc-800 text-xs text-zinc-500 bg-zinc-900/80 sticky top-0">
-                        <th class="p-2">Key</th>
-                        <th class="p-2">HWID / Status</th>
-                        <th class="p-2">Action</th>
+                        <th class="p-2.5">Key String</th>
+                        <th class="p-2.5">Status</th>
+                        <th class="p-2.5 text-right">Actions</th>
                     </tr>
                     <tbody id="admin-keys-table-body"></tbody>
                 </table>
@@ -299,7 +299,6 @@
                 return;
             }
 
-            // บันทึกเซสชันเริ่มต้นที่สเตป 1 (โดยรอบแรกสุดจะพาไปหน้าเว็บตัวเลือกที่เลือกก่อน)
             await db.from('sessions').upsert([{ hwid: hwid, step: 1, service: serviceName }]);
             window.location.href = targetUrl;
         }
@@ -347,8 +346,17 @@
         }
 
         async function finalizeKeyGeneration() {
+            if (!currentUser) {
+                alert("User session not found!");
+                return;
+            }
+
             const discordId = currentUser.id;
-            let { data: userKeys } = await db.from('keys').select('*').eq('discord_id', discordId);
+            let { data: userKeys, error: fetchError } = await db.from('keys').select('*').eq('discord_id', discordId);
+            
+            if (fetchError) {
+                console.error("Fetch Error:", fetchError.message);
+            }
 
             if (userKeys && userKeys.length >= 3) {
                 alert("You have reached the maximum limit of 3 keys per Discord account!");
@@ -369,24 +377,27 @@
 
             const expireTime = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
 
+            const payload = {
+                hwid: hwid,
+                key_string: newKey,
+                step: 4,
+                is_permanent: false,
+                expires_at: expireTime,
+                discord_id: String(discordId)
+            };
+
             if (existingDevice) {
-                await db.from('keys').update({
-                    key_string: newKey,
-                    step: 4,
-                    is_permanent: false,
-                    expires_at: expireTime,
-                    discord_id: discordId,
-                    updated_at: new Date().toISOString()
-                }).eq('hwid', hwid);
+                let { error: updateErr } = await db.from('keys').update(payload).eq('hwid', hwid);
+                if (updateErr) {
+                    alert("Database Update Error: " + updateErr.message);
+                    return;
+                }
             } else {
-                await db.from('keys').insert([{
-                    hwid: hwid,
-                    key_string: newKey,
-                    step: 4,
-                    is_permanent: false,
-                    expires_at: expireTime,
-                    discord_id: discordId
-                }]);
+                let { error: insertErr } = await db.from('keys').insert([payload]);
+                if (insertErr) {
+                    alert("Database Insert Error: " + insertErr.message);
+                    return;
+                }
             }
 
             await db.from('sessions').delete().eq('hwid', hwid);
@@ -510,14 +521,24 @@
             let { data: keys } = await db.from('keys').select('*').order('created_at', { ascending: false });
             let tbody = document.getElementById('admin-keys-table-body');
             let rows = '';
-            if (keys) {
+            if (keys && keys.length > 0) {
                 keys.forEach(k => {
-                    rows += `<tr class="border-b border-zinc-800 text-xs">
-                        <td class="p-2 font-mono text-pink-400">${k.key_string}</td>
-                        <td class="p-2 text-zinc-400 truncate max-w-[100px]">${k.hwid || 'Custom'}</td>
-                        <td class="p-2"><button onclick="deleteKey('${k.id}')" class="text-red-400 hover:text-red-300 font-bold cursor-pointer">Delete</button></td>
+                    let isExpired = k.expires_at && new Date(k.expires_at) < new Date();
+                    rows += `<tr class="border-b border-zinc-800/80 text-xs hover:bg-zinc-900/40 transition">
+                        <td class="p-2.5 font-mono text-pink-400 font-bold">${k.key_string}</td>
+                        <td class="p-2.5">
+                            <span class="text-[10px] px-2 py-0.5 rounded ${isExpired ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-pink-500/10 text-pink-400 border border-pink-500/20'}">
+                                ${isExpired ? 'Expired' : 'Active'}
+                            </span>
+                        </td>
+                        <td class="p-2.5 text-right flex items-center justify-end gap-1.5">
+                            <button onclick="navigator.clipboard.writeText('${k.key_string}'); alert('Key copied to clipboard!')" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer">Copy</button>
+                            <button onclick="deleteKey('${k.id}')" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer">Delete</button>
+                        </td>
                     </tr>`;
                 });
+            } else {
+                rows = `<tr><td colspan="3" class="p-4 text-center text-zinc-500 text-xs">No keys found in database</td></tr>`;
             }
             tbody.innerHTML = rows;
         }
