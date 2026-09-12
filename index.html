@@ -57,12 +57,10 @@
     </div>
 
     <script>
-        // ใส่ค่า Supabase URL และ Anon Key ของมึงตรงนี้
         const SUPABASE_URL = "https://mydgdxlzpjvxeyvuhwzs.supabase.co";
         const SUPABASE_ANON_KEY = "ใส่_Anon_Key_ของมึงตรงนี้";
         const ADMIN_DISCORD_ID = "ใส่_Discord_ID_แอดมินของมึงตรงนี้";
 
-        // ใช้ชื่อตัวแปรเป็น db แทน เพื่อไม่ให้ชนกับคลาส supabase ของ CDN
         const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         const urlParams = new URLSearchParams(window.location.search);
         const hwid = urlParams.get('hwid');
@@ -98,24 +96,26 @@
         }
 
         async function init() {
-            const { data: { session } } = await db.auth.getSession();
+            // ดึง session ล่าสุด (รวมถึงกรณีเพิ่ง redirect กลับมาจาก OAuth ด้วย)
+            const { data: { session }, error } = await db.auth.getSession();
             const authBtnDiv = document.getElementById('auth-action-btn');
 
-            if (session) {
+            if (session && session.user) {
                 const user = session.user;
-                const username = user.user_metadata?.full_name || user.user_metadata?.name || 'User';
-                const avatar = user.user_metadata?.avatar_url || 'https://cdn.jsdelivr.net/npm/@tabler/icons@latest/icons/user.svg';
+                const username = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.preferred_username || 'User';
+                const avatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || 'https://cdn.jsdelivr.net/npm/@tabler/icons@latest/icons/user.svg';
                 
                 authBtnDiv.innerHTML = `
                     <div class="flex items-center gap-2 bg-zinc-900/80 border border-zinc-800 px-3 py-1.5 rounded-xl text-xs font-semibold text-zinc-200">
-                        <img src="${avatar}" class="w-5 h-5 rounded-full object-cover">
+                        <img src="${avatar}" class="w-5 h-5 rounded-full object-cover border border-zinc-700">
                         <span class="max-w-[100px] truncate">${username}</span>
-                        <button onclick="logoutUser()" class="text-red-400 hover:text-red-300 ml-2 cursor-pointer">ออก</button>
+                        <button onclick="logoutUser()" class="text-red-400 hover:text-red-300 ml-2 cursor-pointer font-bold">ออก</button>
                     </div>
                 `;
 
-                const discordId = user.identities?.[0]?.id || user.user_metadata?.provider_id;
-                if (ADMIN_DISCORD_ID && discordId === ADMIN_DISCORD_ID) {
+                // เช็คว่าเป็นแอดมินไหมจาก Provider ID หรือ identities
+                const discordId = user.identities?.[0]?.id || user.user_metadata?.provider_id || user.id;
+                if (ADMIN_DISCORD_ID && String(discordId) === String(ADMIN_DISCORD_ID)) {
                     renderAdminPanel(user);
                     return;
                 }
@@ -144,7 +144,7 @@
 
             statusText.innerText = t.checking;
 
-            let { data: existingKey, error } = await db
+            let { data: existingKey, error: keyError } = await db
                 .from('keys')
                 .select('*')
                 .eq('hwid', hwid)
@@ -259,6 +259,7 @@
             init();
         }
 
+        // รัน init ทันทีเมื่อโหลดหน้าเว็บเสร็จ
         init();
     </script>
 </body>
