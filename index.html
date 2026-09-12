@@ -57,8 +57,8 @@
         <div id="view-key-system">
             <div class="flex items-center justify-between mb-6">
                 <div class="flex items-center gap-2">
-                    <span id="checkpoint-badge" class="bg-pink-500/10 border border-pink-500/20 text-pink-400 text-xs font-bold px-3 py-1 rounded-lg">CHECKPOINT 1 / 3</span>
-                    <span id="checkpoint-status" class="text-xs text-zinc-400 font-medium">IN PROGRESS</span>
+                    <span id="checkpoint-badge" class="bg-pink-500/10 border border-pink-500/20 text-pink-400 text-xs font-bold px-3 py-1 rounded-lg">HUB GATEWAY</span>
+                    <span id="checkpoint-status" class="text-xs text-zinc-400 font-medium">SELECT SERVICE</span>
                 </div>
                 <button onclick="testerBypass()" class="bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 text-[10px] font-bold px-2.5 py-1 rounded-lg transition cursor-pointer">⚡ Tester Bypass</button>
             </div>
@@ -92,6 +92,7 @@
                 <div class="mb-3">
                     <label class="text-[11px] text-zinc-400 block mb-1">Key Duration:</label>
                     <select id="key-duration-select" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-pink-500">
+                        <option value="12hours">12 Hours</option>
                         <option value="7days">7 Days</option>
                         <option value="permanent">Permanent</option>
                     </select>
@@ -234,12 +235,27 @@
 
                 document.getElementById('hwid-status-label').innerText = "Device: " + hwid.substring(0, 12) + "...";
 
+                // เช็คคีย์ในระบบว่ามีอยู่จริงและยังไม่หมดอายุไหม
                 let { data: existingKey } = await db.from('keys').select('*').eq('hwid', hwid).single();
 
-                if (existingKey && existingKey.key_string && (!existingKey.expires_at || new Date(existingKey.expires_at) > new Date())) {
-                    renderKeyActiveUI(existingKey.key_string, existingKey.expires_at);
+                if (existingKey && existingKey.key_string) {
+                    const isExpired = existingKey.expires_at && new Date(existingKey.expires_at) < new Date();
+                    if (!isExpired) {
+                        renderKeyActiveUI(existingKey.key_string, existingKey.expires_at);
+                        return;
+                    } else {
+                        // ถ้าคีย์หมดอายุแล้ว ให้ลบคีย์ทิ้งและเคลียร์เซสชันเพื่อให้กลับไปหน้าเลือกบริการใหม่
+                        await db.from('keys').delete().eq('hwid', hwid);
+                        await db.from('sessions').delete().eq('hwid', hwid);
+                    }
+                }
+
+                // เช็คว่ามีเซสชันค้างอยู่ไหม ถ้าไม่มีให้โชว์หน้าเลือกบริการ (Service Selector)
+                let { data: sessionData } = await db.from('sessions').select('*').eq('hwid', hwid).single();
+                if (!sessionData) {
+                    renderServiceSelectorUI();
                 } else {
-                    renderCheckpointUI();
+                    renderCheckpointUI(sessionData.step);
                 }
 
             } catch (err) {
@@ -247,35 +263,57 @@
             }
         }
 
-        async function getDeviceProgress() {
-            let { data } = await db.from('sessions').select('*').eq('hwid', hwid).single();
-            if (!data) {
-                await db.from('sessions').insert([{ hwid: hwid, step: 1 }]);
-                return 1;
-            }
-            return data.step || 1;
+        // หน้าจอให้ผู้ใช้เลือกบริการลิงก์โฆษณา (Service Selector)
+        function renderServiceSelectorUI() {
+            document.getElementById('checkpoint-badge').innerText = "HUB GATEWAY";
+            document.getElementById('checkpoint-status').innerText = "SELECT SERVICE";
+
+            const contentBox = document.getElementById('content-box');
+            contentBox.innerHTML = `
+                <div class="text-xs text-zinc-300 font-semibold mb-3 text-center">Please select your preferred monetization service:</div>
+                <div class="space-y-3">
+                    <button onclick="selectService('linkvertise')" class="w-full bg-zinc-900 border border-zinc-800 hover:border-pink-500/50 p-4 rounded-2xl flex items-center justify-between transition group cursor-pointer">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-xl bg-pink-500/10 border border-pink-500/30 flex items-center justify-center text-pink-400 font-bold text-xs">LV</div>
+                            <div class="text-left">
+                                <div class="text-xs font-bold text-white group-hover:text-pink-400 transition">Linkvertise Gateway</div>
+                                <div class="text-[10px] text-zinc-500">3 Checkpoints required</div>
+                            </div>
+                        </div>
+                        <svg class="w-4 h-4 text-zinc-500 group-hover:text-pink-400 transition" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                    <button onclick="selectService('more')" class="w-full bg-zinc-900 border border-zinc-800 hover:border-purple-500/50 p-4 rounded-2xl flex items-center justify-between transition group cursor-pointer">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 font-bold text-xs">MR</div>
+                            <div class="text-left">
+                                <div class="text-xs font-bold text-white group-hover:text-purple-400 transition">Alternative Gateway (More)</div>
+                                <div class="text-[10px] text-zinc-500">Fast alternative link system</div>
+                            </div>
+                        </div>
+                        <svg class="w-4 h-4 text-zinc-500 group-hover:text-purple-400 transition" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                </div>
+            `;
         }
 
-        async function renderCheckpointUI() {
-            let cpStep = await getDeviceProgress();
+        async function selectService(serviceType) {
+            if (!currentUser) {
+                alert("Please login with Discord first!");
+                return;
+            }
+
+            // บันทึกเริ่มต้นเซสชันที่ Checkpoint 1
+            await db.from('sessions').upsert([{ hwid: hwid, step: 1 }]);
+            renderCheckpointUI(1);
+        }
+
+        async function renderCheckpointUI(cpStep) {
             document.getElementById('checkpoint-badge').innerText = `CHECKPOINT ${cpStep} / 3`;
             document.getElementById('checkpoint-status').innerText = "IN PROGRESS";
 
             const contentBox = document.getElementById('content-box');
-
-            if (!currentUser) {
-                contentBox.innerHTML = `
-                    <div class="bg-pink-500/10 border border-pink-500/20 text-pink-300 p-4 rounded-2xl text-xs leading-relaxed text-center mb-4">
-                        Please click <b>Login with Discord</b> at the top right before starting Checkpoints!
-                    </div>
-                    <button onclick="loginWithDiscord()" class="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white py-3.5 rounded-2xl font-bold transition duration-300 shadow-lg shadow-indigo-500/20 cursor-pointer flex items-center justify-center gap-2 text-sm">
-                        <span>Login with Discord to Start</span>
-                    </button>
-                `;
-                return;
-            }
-
             let btnText = cpStep === 3 ? "Complete Final Checkpoint & Get Key" : `Complete Checkpoint ${cpStep} ->`;
+            
             contentBox.innerHTML = `
                 <button onclick="startCheckpoint(${cpStep})" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white py-3.5 rounded-2xl font-bold transition duration-300 shadow-lg shadow-pink-500/20 btn-glow cursor-pointer flex items-center justify-center gap-2 text-sm">
                     <span>${btnText}</span>
@@ -305,7 +343,7 @@
                 alert("Please login with Discord first for testing!");
                 return;
             }
-            await db.from('sessions').update({ step: 3 }).eq('hwid', hwid);
+            await db.from('sessions').upsert([{ hwid: hwid, step: 3 }]);
             await finalizeKeyGeneration();
         }
 
@@ -315,7 +353,7 @@
 
             if (userKeys && userKeys.length >= 3) {
                 alert("You have reached the maximum limit of 3 keys per Discord account!");
-                await db.from('sessions').update({ step: 1 }).eq('hwid', hwid);
+                await db.from('sessions').delete().eq('hwid', hwid);
                 location.reload();
                 return;
             }
@@ -330,28 +368,27 @@
             let newKey = "SKEYX" + randomPart;
             if (newKey.length > 15) newKey = newKey.substring(0, 15);
 
+            // ตั้งเวลาหมดอายุใน 12 ชั่วโมงเป๊ะๆ
             const expireTime = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
 
             if (existingDevice) {
-                let updatePayload = {
+                await db.from('keys').update({
                     key_string: newKey,
                     step: 3,
                     is_permanent: false,
                     expires_at: expireTime,
                     discord_id: discordId,
                     updated_at: new Date().toISOString()
-                };
-                await db.from('keys').update(updatePayload).eq('hwid', hwid);
+                }).eq('hwid', hwid);
             } else {
-                let insertPayload = {
+                await db.from('keys').insert([{
                     hwid: hwid,
                     key_string: newKey,
                     step: 3,
                     is_permanent: false,
                     expires_at: expireTime,
                     discord_id: discordId
-                };
-                await db.from('keys').insert([insertPayload]);
+                }]);
             }
 
             await db.from('sessions').delete().eq('hwid', hwid);
@@ -377,13 +414,17 @@
         function startCountdown(expireDateStr) {
             const expireTime = new Date(expireDateStr).getTime();
 
-            const timerInterval = setInterval(() => {
+            const timerInterval = setInterval(async () => {
                 const now = new Date().getTime();
                 const distance = expireTime - now;
 
                 if (distance < 0) {
                     clearInterval(timerInterval);
                     document.getElementById('countdown-timer').innerText = "EXPIRED";
+                    // ถ้าหมดอายุ ให้ลบคีย์ออกจากฐานข้อมูลแล้วรีเฟรชกลับไปหน้า Get Key ใหม่
+                    await db.from('keys').delete().eq('hwid', hwid);
+                    alert("Your key has expired! Please generate a new key.");
+                    location.reload();
                     return;
                 }
 
@@ -501,7 +542,9 @@
 
             let expireTime = null;
             let isPerm = false;
-            if(durationType === '7days') {
+            if(durationType === '12hours') {
+                expireTime = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
+            } else if(durationType === '7days') {
                 expireTime = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
             } else if(durationType === 'permanent') {
                 isPerm = true;
