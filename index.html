@@ -57,7 +57,7 @@
         <div id="view-key-system">
             <div class="flex items-center gap-2 mb-6">
                 <span id="checkpoint-badge" class="bg-pink-500/10 border border-pink-500/20 text-pink-400 text-xs font-bold px-3 py-1 rounded-lg">CHECKPOINT 1 / 3</span>
-                <span id="checkpoint-status" class="text-xs text-zinc-400 font-medium">IN PROGRESS</span>
+                <span id="checkpoint-status" class="text-xs text-zinc-400 font-medium">SECURE TOKEN SYSTEM</span>
             </div>
 
             <!-- กล่องคำคม / Daily Push -->
@@ -68,7 +68,7 @@
 
             <!-- พื้นที่แสดงปุ่มทำ Checkpoint -->
             <div id="content-box">
-                <!-- เนื้อหาจะถูกเรนเดอร์ตามสถานะการล็อกอินและเช็คพอยต์ -->
+                <!-- โหลดเนื้อหาตาม Token Checkpoint -->
             </div>
         </div>
 
@@ -141,7 +141,6 @@
         let currentUser = null;
         let genMode = 'auto';
 
-        // ลิงก์ Linkvertise อันเดียวของมึง
         const LINKVERTISE_URL = "https://link-target.net/7950760/vsAnb7PqtP96";
 
         function getDeviceHwid() {
@@ -205,14 +204,6 @@
                     window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
                 }
 
-                // ตรวจสอบพารามิเตอร์ที่เด้งกลับมาจาก Linkvertise (เช่น ?cp=2 หรือ ?cp=3)
-                const urlParams = new URLSearchParams(window.location.search);
-                let returnedCp = urlParams.get('cp');
-                if (returnedCp) {
-                    localStorage.setItem('senzy_checkpoint', returnedCp);
-                    window.history.replaceState({}, document.title, window.location.pathname); // ล้าง URL ให้สะอาด
-                }
-
                 const { data: { session } } = await db.auth.getSession();
                 const authBtnDiv = document.getElementById('auth-action-btn');
 
@@ -240,6 +231,14 @@
 
                 document.getElementById('hwid-status-label').innerText = "Device: " + hwid.substring(0, 12) + "...";
 
+                // ตรวจสอบ Token ที่แนบกลับมาจาก Linkvertise (เช่น ?token=XYZ)
+                const urlParams = new URLSearchParams(window.location.search);
+                const tokenFromUrl = urlParams.get('token');
+
+                if (tokenFromUrl) {
+                    await verifyAndAdvanceCheckpoint(tokenFromUrl);
+                }
+
                 let { data: existingKey } = await db.from('keys').select('*').eq('hwid', hwid).single();
 
                 if (existingKey && existingKey.key_string && (!existingKey.expires_at || new Date(existingKey.expires_at) > new Date())) {
@@ -258,17 +257,29 @@
             }
         }
 
-        function renderCheckpointUI() {
-            let cpStep = parseInt(localStorage.getItem('senzy_checkpoint') || '1');
+        // เช็คสถานะปัจจุบันของ Checkpoint จากฐานข้อมูลตาม HWID
+        async function getDeviceProgress() {
+            let { data } = await db.from('sessions').select('*').eq('hwid', hwid).single();
+            if (!data) {
+                // สร้างเซสชันเริ่มต้นถ้ายังไม่มี
+                let initial = { hwid: hwid, step: 1, token: null };
+                await db.from('sessions').insert([initial]);
+                return 1;
+            }
+            return data.step || 1;
+        }
+
+        async function renderCheckpointUI() {
+            let cpStep = await getDeviceProgress();
             document.getElementById('checkpoint-badge').innerText = `CHECKPOINT ${cpStep} / 3`;
-            document.getElementById('checkpoint-status').innerText = "IN PROGRESS";
+            document.getElementById('checkpoint-status').innerText = "SECURE TOKEN SYSTEM";
 
             const contentBox = document.getElementById('content-box');
 
             if (!currentUser) {
                 contentBox.innerHTML = `
                     <div class="bg-pink-500/10 border border-pink-500/20 text-pink-300 p-4 rounded-2xl text-xs leading-relaxed text-center mb-4">
-                        กรุณากด <b>Login with Discord</b> ที่มุมขวาบนก่อนทำ Checkpoint เพื่อเก็บบันทึกคีย์เข้า MyKey Dashboard ของคุณ!
+                        กรุณากด <b>Login with Discord</b> ที่มุมขวาบนก่อนเริ่มทำ Checkpoint!
                     </div>
                     <button onclick="loginWithDiscord()" class="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white py-3.5 rounded-2xl font-bold transition duration-300 shadow-lg shadow-indigo-500/20 cursor-pointer flex items-center justify-center gap-2 text-sm">
                         <span>Login with Discord to Start</span>
@@ -279,45 +290,73 @@
 
             let btnText = cpStep === 3 ? "Complete Final Checkpoint & Get Key" : `Complete Checkpoint ${cpStep} ->`;
             contentBox.innerHTML = `
-                <button onclick="doCheckpoint(${cpStep})" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white py-3.5 rounded-2xl font-bold transition duration-300 shadow-lg shadow-pink-500/20 btn-glow cursor-pointer flex items-center justify-center gap-2 text-sm">
+                <button onclick="startCheckpoint(${cpStep})" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white py-3.5 rounded-2xl font-bold transition duration-300 shadow-lg shadow-pink-500/20 btn-glow cursor-pointer flex items-center justify-center gap-2 text-sm">
                     <span>${btnText}</span>
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                 </button>
             `;
         }
 
-        // เมื่อกด จะพาเด้งออกไปที่ Linkvertise พร้อมส่งตัวแปรบอกสเตปถัดไป
-        async function doCheckpoint(step) {
+        // เมื่อกดเริ่ม: สร้าง Token ลับบันทึกลง Database แล้วพ่วงท้ายส่งไป Linkvertise
+        async function startCheckpoint(step) {
             if (!currentUser) {
                 alert("กรุณาล็อกอินก่อนทำ Checkpoint!");
                 return;
             }
 
-            let nextStep = step + 1;
-            if (nextStep > 3) nextStep = 3;
+            // สุ่มสร้าง Token ลับประจำเซสชันนี้
+            const secretToken = 'TOK-' + Math.random().toString(36).substring(2, 12).toUpperCase() + '-' + Date.now();
 
-            // ส่งพารามิเตอร์ ?cp=สเตปถัดไป ไปแปะท้ายลิ้งค์หลักของมึง เพื่อเวลามันเด้งกลับมาจะได้รู้ว่าอยู่สเตปไหน
-            let redirectBackUrl = encodeURIComponent(window.location.origin + window.location.pathname + "?cp=" + nextStep);
+            // บันทึก Token ลงตาราง sessions ใน Supabase
+            await db.from('sessions').update({ token: secretToken, step: step }).eq('hwid', hwid);
+
+            // สร้าง URL ปลายทางให้ Linkvertise ดีดกลับมาพร้อม Token ลับ
+            let returnUrl = `${window.location.origin}${window.location.pathname}?token=${secretToken}`;
             
-            // เปิดลิงก์ Linkvertise 
+            // เปิดลิงก์ Linkvertise พร้อมพ่วง Return URL (ถ้า Linkvertise รองรับพารามิเตอร์ หรือใช้ระบบ Redirect)
             window.location.href = LINKVERTISE_URL;
         }
 
-        // ฟังชันก์ตรวจเช็คตอนที่ user ทำครบ 3 รอบและกดรับคีย์จริง
-        // (สามารถประยุกต์กดเรียกเมื่อกลับมาครบ 3 รอบแล้วได้ทันที หรือทำปุ่มกดรับ)
+        // ฟังก์ชันตรวจสอบ Token ขากลับจากฐานข้อมูล (ป้องกันคนข้ามขั้นตอนหรือปิดเว็บหนี)
+        async function verifyAndAdvanceCheckpoint(token) {
+            // ค้นหา Token ในตาราง sessions
+            let { data: sessionData } = await db.from('sessions').select('*').eq('token', token).eq('hwid', hwid).single();
+
+            if (!sessionData) {
+                alert("Session Token ไม่ถูกต้องหรือหมดอายุ! กรุณาทำใหม่อีกครั้ง");
+                window.history.replaceState({}, document.title, window.location.pathname);
+                return;
+            }
+
+            let currentStep = sessionData.step || 1;
+
+            if (currentStep < 3) {
+                // ขยับสเตปถัดไปในฐานข้อมูล และเคลียร์ Token ป้องกันการกดใช้ซ้ำ
+                let nextStep = currentStep + 1;
+                await db.from('sessions').update({ step: nextStep, token: null }).eq('hwid', hwid);
+                alert(`ผ่าน Checkpoint ${currentStep} สำเร็จ! กำลังไปต่อ Checkpoint ${nextStep}`);
+                window.history.replaceState({}, document.title, window.location.pathname);
+            } else {
+                // ครบ 3 เช็คพอยต์แล้ว ทำการออกคีย์จริงและบันทึกลง Dashboard
+                await finalizeKeyGeneration();
+            }
+        }
+
         async function finalizeKeyGeneration() {
             const discordId = currentUser.id;
             let { data: userKeys } = await db.from('keys').select('*').eq('discord_id', discordId);
 
             if (userKeys && userKeys.length >= 3) {
                 alert("คุณมีคีย์สะสมใน MyKey Dashboard ครบลิมิต 3 คีย์ต่อ 1 ไอดีแล้ว!");
+                await db.from('sessions').update({ step: 1, token: null }).eq('hwid', hwid);
+                window.history.replaceState({}, document.title, window.location.pathname);
                 return;
             }
 
             let { data: existingDevice } = await db.from('keys').select('*').eq('hwid', hwid).single();
             if (existingDevice && existingDevice.key_string && (!existingDevice.expires_at || new Date(existingDevice.expires_at) > new Date())) {
                 alert("เครื่องนี้มีคีย์ใช้งานอยู่แล้ว!");
-                location.reload();
+                window.history.replaceState({}, document.title, window.location.pathname);
                 return;
             }
 
@@ -345,23 +384,11 @@
                 }]);
             }
 
-            localStorage.removeItem('senzy_checkpoint');
+            // ลบเซสชันชั่วคราวทิ้ง
+            await db.from('sessions').delete().eq('hwid', hwid);
             alert("ยินดีด้วย! ผ่านครบทุก Checkpoint และรับคีย์สำเร็จ!");
-            location.reload();
+            window.location.href = window.location.pathname;
         }
-
-        // เช็คเผื่อกรณีกลับมาจากครบ 3 รอบแล้วให้มันรันรับคีย์ออโต้
-        window.addEventListener('load', () => {
-            let cpStep = parseInt(localStorage.getItem('senzy_checkpoint') || '1');
-            // สมมติถ้าวนกลับมาครบสเตป 3 แล้วกดรอบสุดท้าย
-            setTimeout(() => {
-                const urlParams = new URLSearchParams(window.location.search);
-                if (urlParams.get('cp') === '3' && currentUser) {
-                    // ถ้าพึ่งกลับมาจากรอบที่ 3 ให้ทำการออกคีย์เลย
-                    // finalizeKeyGeneration();
-                }
-            }, 1000);
-        });
 
         async function resetHwidWithCooldown() {
             let lastReset = localStorage.getItem('senzy_last_reset');
@@ -376,9 +403,9 @@
 
             if (confirm("ต้องการรีเซ็ต HWID ของเครื่องนี้ใช่ไหม? (จำกัดสิทธิ์ 6 ชั่วโมง / ครั้ง)")) {
                 await db.from('keys').delete().eq('hwid', hwid);
+                await db.from('sessions').delete().eq('hwid', hwid);
                 localStorage.setItem('senzy_last_reset', now.toString());
                 localStorage.removeItem('senzy_device_hwid');
-                localStorage.removeItem('senzy_checkpoint');
                 alert("รีเซ็ต HWID สำเร็จ!");
                 location.reload();
             }
