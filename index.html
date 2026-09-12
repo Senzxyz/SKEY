@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SenzyHub - Premium Key System</title>
+    <title>Senzy</title>
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/senzxyz2xxx/SenzyHub/refs/heads/main/senz2.png">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -189,7 +189,6 @@
         }
         let hwid = getDeviceHwid();
 
-        // ตรวจสอบระบบแบน Anti-Bypass 15 นาที
         function checkBypassBan() {
             let banUntil = localStorage.getItem('senzy_bypass_ban');
             if (banUntil) {
@@ -207,7 +206,7 @@
         }
 
         function triggerBypassBan() {
-            let banTime = Date.now() + 15 * 60 * 1000; // ล็อก 15 นาที
+            let banTime = Date.now() + 15 * 60 * 1000;
             localStorage.setItem('senzy_bypass_ban', banTime.toString());
             checkBypassBan();
         }
@@ -305,36 +304,48 @@
                     } else {
                         await db.from('keys').delete().eq('hwid', hwid);
                         await db.from('sessions').delete().eq('hwid', hwid);
+                        localStorage.removeItem('senzy_step');
+                        localStorage.removeItem('senzy_service');
                     }
                 }
 
-                let { data: sessionData } = await db.from('sessions').select('*').eq('hwid', hwid).single();
-                
-                // ตรวจสอบการพยายาม Bypass (ถ้าจู่ๆ มีพารามิเตอร์ขากลับหรือรีเฟรชหน้าโดยไม่มีเซสชันในระบบ)
-                const urlParams = new URLSearchParams(window.location.search);
-                const hasToken = urlParams.has('linkvertise-token') || urlParams.has('r') || urlParams.has('token');
+                // เช็คสถานะจาก localStorage ร่วมกับ Supabase เพื่อความแม่นยำสูงสุด
+                let localStep = parseInt(localStorage.getItem('senzy_step') || '0');
+                let localService = localStorage.getItem('senzy_service') || '';
 
-                if (!sessionData) {
+                let { data: sessionData } = await db.from('sessions').select('*').eq('hwid', hwid).single();
+
+                if (sessionData && sessionData.step > localStep) {
+                    localStep = sessionData.step;
+                    localService = sessionData.service;
+                    localStorage.setItem('senzy_step', localStep.toString());
+                    localStorage.setItem('senzy_service', localService);
+                }
+
+                // ตรวจจับการพยายาม Bypass (ถ้าผู้ใช้กลับมาที่หน้าเว็บแล้วมีพารามิเตอร์ Token หรือโดดข้ามขั้นตอน แต่ในเครื่องไม่มีประวัติการกดเริ่ม)
+                const urlParams = new URLSearchParams(window.location.search);
+                const hasToken = urlParams.has('linkvertise-token') || urlParams.has('r') || urlParams.has('token') || urlParams.toString().length > 0;
+
+                if (localStep === 0) {
                     if (hasToken) {
-                        // มี Token ลอยมาแต่ไม่มีเซสชันบันทึกไว้ -> โดนจับว่า Bypass ชัวร์!
                         triggerBypassBan();
                         return;
                     }
                     renderServiceSelectorUI();
                 } else {
-                    if (hasToken || sessionData.step > 0) {
-                        let nextStep = sessionData.step + 1;
+                    // ถ้ากลับมาจากโฆษณา ให้ขยับสเตปขึ้นอัตโนมัติ
+                    if (hasToken) {
+                        localStep += 1;
+                        localStorage.setItem('senzy_step', localStep.toString());
                         window.history.replaceState({}, document.title, window.location.pathname);
                         
-                        if (nextStep > 4) {
+                        if (localStep > 4) {
                             await finalizeKeyGeneration();
                             return;
-                        } else {
-                            await db.from('sessions').update({ step: nextStep }).eq('hwid', hwid);
-                            sessionData.step = nextStep;
                         }
+                        await db.from('sessions').upsert([{ hwid: hwid, step: localStep, service: localService }]);
                     }
-                    renderCheckpointUI(sessionData.step, sessionData.service);
+                    renderCheckpointUI(localStep, localService);
                 }
 
             } catch (err) {
@@ -380,6 +391,8 @@
                 return;
             }
 
+            localStorage.setItem('senzy_step', '1');
+            localStorage.setItem('senzy_service', serviceName);
             await db.from('sessions').upsert([{ hwid: hwid, step: 1, service: serviceName }]);
             window.location.href = targetUrl;
         }
@@ -394,14 +407,14 @@
             let btnText = cpStep === 4 ? "Complete Final Step & Get Key" : `Complete Step ${cpStep} ->`;
             
             contentBox.innerHTML = `
-                <button onclick="startCheckpoint(${cpStep}, '${targetUrl}')" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white py-3.5 rounded-2xl font-bold transition duration-300 shadow-lg shadow-pink-500/20 btn-glow cursor-pointer flex items-center justify-center gap-2 text-sm">
+                <button onclick="startCheckpoint('${targetUrl}')" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white py-3.5 rounded-2xl font-bold transition duration-300 shadow-lg shadow-pink-500/20 btn-glow cursor-pointer flex items-center justify-center gap-2 text-sm">
                     <span>${btnText}</span>
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                 </button>
             `;
         }
 
-        async function startCheckpoint(step, targetUrl) {
+        async function startCheckpoint(targetUrl) {
             if (!currentUser) {
                 showModal("Authentication Required", "Please login with Discord first!");
                 return;
@@ -427,6 +440,8 @@
                     location.reload();
                 });
                 await db.from('sessions').delete().eq('hwid', hwid);
+                localStorage.removeItem('senzy_step');
+                localStorage.removeItem('senzy_service');
                 return;
             }
 
@@ -466,6 +481,8 @@
             }
 
             await db.from('sessions').delete().eq('hwid', hwid);
+            localStorage.removeItem('senzy_step');
+            localStorage.removeItem('senzy_service');
             renderKeyActiveUI(newKey, expireTime);
         }
 
@@ -496,6 +513,8 @@
                     clearInterval(timerInterval);
                     document.getElementById('countdown-timer').innerText = "EXPIRED";
                     await db.from('keys').delete().eq('hwid', hwid);
+                    localStorage.removeItem('senzy_step');
+                    localStorage.removeItem('senzy_service');
                     showModal("Expired", "Your key has expired! Please generate a new key.", () => {
                         location.reload();
                     });
@@ -524,6 +543,8 @@
             if (confirm("Are you sure you want to reset this device HWID? (Limited to once every 6 hours)")) {
                 await db.from('keys').delete().eq('hwid', hwid);
                 await db.from('sessions').delete().eq('hwid', hwid);
+                localStorage.removeItem('senzy_step');
+                localStorage.removeItem('senzy_service');
                 localStorage.setItem('senzy_last_reset', now.toString());
                 localStorage.removeItem('senzy_device_hwid');
                 showModal("Success", "HWID reset successfully!", () => {
