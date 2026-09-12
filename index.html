@@ -13,6 +13,9 @@
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #0b0f19; }
         .neon-glow { box-shadow: 0 0 50px rgba(236, 72, 153, 0.15), 0 0 100px rgba(168, 85, 247, 0.1); }
         .btn-glow:hover { box-shadow: 0 0 25px rgba(236, 72, 153, 0.4); }
+        .spin { animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        button:disabled { opacity: 0.55; cursor: not-allowed !important; }
     </style>
 </head>
 <body class="text-zinc-100 flex flex-col items-center justify-center min-h-screen relative overflow-x-hidden selection:bg-pink-500 selection:text-white p-4">
@@ -30,7 +33,7 @@
 
     <!-- Main Card -->
     <div class="bg-[#111827]/80 backdrop-blur-2xl p-7 rounded-3xl shadow-2xl w-full max-w-lg border border-zinc-800/80 relative z-10 neon-glow">
-        
+
         <!-- Header & Logo -->
         <div class="flex items-center justify-between pb-5 border-b border-zinc-800/80 mb-5">
             <div class="flex items-center gap-3">
@@ -49,6 +52,9 @@
             </a>
         </div>
 
+        <!-- Global error banner -->
+        <div id="error-banner" class="hidden mb-4 bg-red-500/10 border border-red-500/30 text-red-300 text-xs font-semibold px-4 py-3 rounded-2xl"></div>
+
         <!-- Admin / User Tabs -->
         <div id="admin-tabs-container" class="hidden flex gap-2 mb-5 pb-3 border-b border-zinc-800/80">
             <button onclick="switchTab('key-system')" id="tab-key-btn" class="flex-1 bg-pink-600 text-white text-xs font-bold py-2 rounded-xl transition cursor-pointer">Key System</button>
@@ -59,7 +65,7 @@
         <div id="view-key-system">
             <div class="flex items-center gap-2 mb-6">
                 <span id="checkpoint-badge" class="bg-pink-500/10 border border-pink-500/20 text-pink-400 text-xs font-bold px-3 py-1 rounded-lg">HUB GATEWAY</span>
-                <span id="checkpoint-status" class="text-xs text-zinc-400 font-medium">SELECT SERVICE</span>
+                <span id="checkpoint-status" class="text-xs text-zinc-400 font-medium">LOADING</span>
             </div>
 
             <!-- Daily Push -->
@@ -70,7 +76,10 @@
 
             <!-- Content Box -->
             <div id="content-box">
-                <!-- Dynamically loaded -->
+                <div class="flex items-center justify-center gap-2 py-6 text-zinc-500 text-xs">
+                    <svg class="w-4 h-4 spin" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    <span>Loading your status...</span>
+                </div>
             </div>
         </div>
 
@@ -78,14 +87,14 @@
         <div id="view-admin-panel" class="hidden">
             <div class="mb-4">
                 <span class="text-xs text-pink-400 font-bold block mb-2">Create Custom Key (Starts with SKEYX - 15 Chars)</span>
-                
+
                 <div class="flex gap-2 mb-3">
                     <button onclick="setGenMode('auto')" id="mode-auto-btn" class="flex-1 bg-pink-600 text-white text-xs font-semibold py-1.5 rounded-xl cursor-pointer">Auto Generate</button>
                     <button onclick="setGenMode('manual')" id="mode-manual-btn" class="flex-1 bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-semibold py-1.5 rounded-xl cursor-pointer">Manual Input</button>
                 </div>
 
                 <div id="manual-input-box" class="hidden mb-2">
-                    <input type="text" id="custom-key-input" placeholder="Suffix after SKEYX... (Total 15 chars)" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-pink-500">
+                    <input type="text" id="custom-key-input" placeholder="Suffix after SKEYX (letters/numbers only)" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-pink-500">
                 </div>
 
                 <div class="mb-3">
@@ -97,7 +106,7 @@
                     </select>
                 </div>
 
-                <button onclick="createCustomKey()" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer text-white shadow-md">Create Key</button>
+                <button onclick="createCustomKey()" id="create-key-btn" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer text-white shadow-md">Create Key</button>
             </div>
 
             <div class="max-h-52 overflow-y-auto border border-zinc-800 rounded-xl bg-zinc-950/40 mb-3">
@@ -148,26 +157,57 @@
     </div>
 
     <script>
+        // ============================================================
+        // Config / state
+        // ============================================================
         let db;
         let ADMIN_DISCORD_ID = "";
         let currentUser = null;
         let genMode = 'auto';
+        let countdownIntervalId = null;
+        let busy = false; // simple global lock to stop double-submits
 
         const LINKVERTISE_URL = "https://link-target.net/7950760/vsAnb7PqtP96";
         const WORKINK_URL = "https://work.ink/2XLb/senzy-hub-get-key";
+
+        // Domains a "return from gateway" navigation is expected to come from.
+        // Used only as a *signal*, never as the sole source of truth, because
+        // referrers can legitimately be blocked by privacy-focused browsers.
+        const GATEWAY_HOSTS = ['linkvertise.com', 'link-target.net', 'work.ink'];
+
+        // Query params Supabase / OAuth can attach on redirect back to us.
+        // These must never be mistaken for "returned from an ad gateway".
+        const OAUTH_PARAMS = ['code', 'error', 'error_description', 'state', 'provider'];
+
+        // ============================================================
+        // Small utilities
+        // ============================================================
+
+        // Escapes any string before it is placed into innerHTML. Anything that
+        // ends up on screen and originated from a database row, Discord profile
+        // metadata, or user input MUST go through this first.
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str === null || str === undefined ? '' : String(str);
+            return div.innerHTML;
+        }
+
+        function showError(message) {
+            const el = document.getElementById('error-banner');
+            el.textContent = message;
+            el.classList.remove('hidden');
+        }
+
+        function clearError() {
+            document.getElementById('error-banner').classList.add('hidden');
+        }
 
         function showModal(title, message, callback = null, hideBtn = false) {
             document.getElementById('modal-title').innerText = title;
             document.getElementById('modal-message').innerText = message;
             const btn = document.getElementById('modal-confirm-btn');
-            if (hideBtn) {
-                btn.classList.add('hidden');
-            } else {
-                btn.classList.remove('hidden');
-            }
-            const modal = document.getElementById('custom-modal');
-            modal.classList.remove('hidden');
-
+            btn.classList.toggle('hidden', hideBtn);
+            document.getElementById('custom-modal').classList.remove('hidden');
             window.modalCallback = callback;
         }
 
@@ -177,6 +217,14 @@
                 window.modalCallback();
                 window.modalCallback = null;
             }
+        }
+
+        // Returns the real Discord snowflake ID, consistently, everywhere.
+        // (Previously the code mixed this up with Supabase's internal auth
+        // UUID depending on which function you looked at.)
+        function getDiscordId(user) {
+            if (!user) return null;
+            return user.user_metadata?.provider_id || user.identities?.[0]?.id || user.id;
         }
 
         function getDeviceHwid() {
@@ -189,35 +237,67 @@
         }
         let hwid = getDeviceHwid();
 
-        function checkBypassBan() {
-            let banUntil = localStorage.getItem('senzy_bypass_ban');
-            if (banUntil) {
-                let timeLeft = parseInt(banUntil) - Date.now();
-                if (timeLeft > 0) {
-                    let mins = Math.floor(timeLeft / 60000);
-                    let secs = Math.floor((timeLeft % 60000) / 1000);
-                    showModal("⛔ Anti-Bypass Triggered", `Detected bypassing or unauthorized jump! You are locked out and cannot proceed for another ${mins}m ${secs}s.`, null, true);
-                    return true;
-                } else {
-                    localStorage.removeItem('senzy_bypass_ban');
+        function withBusyGuard(button, fn) {
+            return async (...args) => {
+                if (busy) return;
+                busy = true;
+                if (button) button.disabled = true;
+                try {
+                    await fn(...args);
+                } finally {
+                    busy = false;
+                    if (button) button.disabled = false;
                 }
+            };
+        }
+
+        // ============================================================
+        // Gateway-return detection (previously "hasToken" — replaced)
+        // ============================================================
+        // Old logic treated ANY non-empty query string as proof of returning
+        // from an ad gateway. That both (a) locked out real users the moment
+        // Supabase appended its own `?code=...` after Discord login, and
+        // (b) let anyone skip every checkpoint by typing "?x=1" in the URL.
+        //
+        // New logic: never punishes ambiguous cases. It only auto-advances a
+        // step when there's a plausible signal (referrer from a known
+        // gateway domain + enough time elapsed since we sent the user away).
+        // If the signal is missing, we simply re-show the same step — no ban.
+
+        function cameFromGatewayReferrer() {
+            try {
+                if (!document.referrer) return false;
+                const host = new URL(document.referrer).hostname.replace(/^www\./, '');
+                return GATEWAY_HOSTS.some(h => host === h || host.endsWith('.' + h));
+            } catch {
+                return false;
             }
-            return false;
         }
 
-        function triggerBypassBan() {
-            let banTime = Date.now() + 15 * 60 * 1000;
-            localStorage.setItem('senzy_bypass_ban', banTime.toString());
-            checkBypassBan();
+        function stripOAuthParams(params) {
+            const clone = new URLSearchParams(params);
+            OAUTH_PARAMS.forEach(p => clone.delete(p));
+            return clone;
         }
 
+        function looksLikePlausibleGatewayReturn() {
+            const pendingSince = parseInt(localStorage.getItem('senzy_pending_since') || '0', 10);
+            if (!pendingSince) return false;
+            const elapsed = Date.now() - pendingSince;
+            const MIN_PLAUSIBLE_MS = 4000; // a real ad view takes at least a few seconds
+            return elapsed > MIN_PLAUSIBLE_MS && cameFromGatewayReferrer();
+        }
+
+        // ============================================================
+        // UI mode toggles
+        // ============================================================
         function setGenMode(mode) {
             genMode = mode;
             const autoBtn = document.getElementById('mode-auto-btn');
             const manualBtn = document.getElementById('mode-manual-btn');
             const inputBox = document.getElementById('manual-input-box');
 
-            if(mode === 'auto') {
+            if (mode === 'auto') {
                 autoBtn.className = "flex-1 bg-pink-600 text-white text-xs font-semibold py-1.5 rounded-xl cursor-pointer";
                 manualBtn.className = "flex-1 bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-semibold py-1.5 rounded-xl cursor-pointer";
                 inputBox.classList.add('hidden');
@@ -234,7 +314,7 @@
             const keyBtn = document.getElementById('tab-key-btn');
             const adminBtn = document.getElementById('tab-admin-btn');
 
-            if(tab === 'key-system') {
+            if (tab === 'key-system') {
                 keyView.classList.remove('hidden');
                 adminView.classList.add('hidden');
                 keyBtn.className = "flex-1 bg-pink-600 text-white text-xs font-bold py-2 rounded-xl transition cursor-pointer";
@@ -248,17 +328,19 @@
             }
         }
 
+        // ============================================================
+        // App init
+        // ============================================================
         async function initApp() {
-            if (checkBypassBan()) {
-                setInterval(checkBypassBan, 1000);
-                return;
-            }
-
             try {
                 const res = await fetch('/api');
+                if (!res.ok) throw new Error('Config endpoint returned ' + res.status);
                 const config = await res.json();
-                
-                if (!config.supabaseUrl || !config.supabaseAnonKey) return;
+
+                if (!config.supabaseUrl || !config.supabaseAnonKey) {
+                    showError("Service configuration is missing. Please contact support.");
+                    return;
+                }
 
                 ADMIN_DISCORD_ID = config.adminUuid;
                 db = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
@@ -273,9 +355,11 @@
                 if (session && session.user) {
                     currentUser = session.user;
                     const metadata = currentUser.user_metadata || {};
-                    const username = metadata.full_name || metadata.name || metadata.custom_name || metadata.preferred_username || currentUser.email?.split('@')[0] || 'User';
-                    const avatar = metadata.avatar_url || metadata.picture || metadata.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=ec4899&color=fff&bold=true`;
-                    
+                    const rawUsername = metadata.full_name || metadata.name || metadata.custom_name || metadata.preferred_username || currentUser.email?.split('@')[0] || 'User';
+                    const username = escapeHtml(rawUsername);
+                    const rawAvatar = metadata.avatar_url || metadata.picture || metadata.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(rawUsername)}&background=ec4899&color=fff&bold=true`;
+                    const avatar = escapeHtml(rawAvatar);
+
                     authBtnDiv.innerHTML = `
                         <div class="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-2xl text-xs font-semibold text-zinc-200 shadow-lg">
                             <div onclick="openDashboard()" class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition" title="Open MyKey Dashboard">
@@ -286,7 +370,7 @@
                         </div>
                     `;
 
-                    const discordId = currentUser.identities?.[0]?.id || metadata.provider_id || currentUser.id;
+                    const discordId = getDiscordId(currentUser);
                     if (ADMIN_DISCORD_ID && String(discordId) === String(ADMIN_DISCORD_ID)) {
                         document.getElementById('admin-tabs-container').classList.remove('hidden');
                     }
@@ -304,17 +388,14 @@
                     } else {
                         await db.from('keys').delete().eq('hwid', hwid);
                         await db.from('sessions').delete().eq('hwid', hwid);
-                        localStorage.removeItem('senzy_step');
-                        localStorage.removeItem('senzy_service');
+                        clearFlowState();
                     }
                 }
 
-                // เช็คสถานะจาก localStorage ร่วมกับ Supabase เพื่อความแม่นยำสูงสุด
-                let localStep = parseInt(localStorage.getItem('senzy_step') || '0');
+                let localStep = parseInt(localStorage.getItem('senzy_step') || '0', 10);
                 let localService = localStorage.getItem('senzy_service') || '';
 
                 let { data: sessionData } = await db.from('sessions').select('*').eq('hwid', hwid).single();
-
                 if (sessionData && sessionData.step > localStep) {
                     localStep = sessionData.step;
                     localService = sessionData.service;
@@ -322,38 +403,52 @@
                     localStorage.setItem('senzy_service', localService);
                 }
 
-                // ตรวจจับการพยายาม Bypass (ถ้าผู้ใช้กลับมาที่หน้าเว็บแล้วมีพารามิเตอร์ Token หรือโดดข้ามขั้นตอน แต่ในเครื่องไม่มีประวัติการกดเริ่ม)
-                const urlParams = new URLSearchParams(window.location.search);
-                const hasToken = urlParams.has('linkvertise-token') || urlParams.has('r') || urlParams.has('token') || urlParams.toString().length > 0;
-
                 if (localStep === 0) {
-                    if (hasToken) {
-                        triggerBypassBan();
-                        return;
-                    }
+                    // Nobody has started a gateway run yet. Any query params here
+                    // (OAuth code, a manually typed param, etc.) are just noise —
+                    // never treat this as a bypass attempt or ban the visitor.
                     renderServiceSelectorUI();
                 } else {
-                    // ถ้ากลับมาจากโฆษณา ให้ขยับสเตปขึ้นอัตโนมัติ
-                    if (hasToken) {
+                    const cleanParams = stripOAuthParams(new URLSearchParams(window.location.search));
+                    const returnAttempted = cleanParams.toString().length > 0 || looksLikePlausibleGatewayReturn();
+
+                    if (returnAttempted && looksLikePlausibleGatewayReturn()) {
                         localStep += 1;
                         localStorage.setItem('senzy_step', localStep.toString());
+                        localStorage.removeItem('senzy_pending_since');
                         window.history.replaceState({}, document.title, window.location.pathname);
-                        
+
                         if (localStep > 4) {
                             await finalizeKeyGeneration();
                             return;
                         }
-                        await db.from('sessions').upsert([{ hwid: hwid, step: localStep, service: localService }]);
+                        await db.from('sessions').upsert([{ hwid, step: localStep, service: localService, user_id: currentUser?.id || null }]);
+                    } else if (returnAttempted) {
+                        // Something came back (extra params) but it doesn't look like
+                        // a genuine gateway return. Don't ban — just re-show the step
+                        // and clean the URL so it isn't confusing.
+                        window.history.replaceState({}, document.title, window.location.pathname);
                     }
+
                     renderCheckpointUI(localStep, localService);
                 }
-
             } catch (err) {
                 console.error("Init Error:", err);
+                showError("Couldn't load the service right now. Please refresh the page in a moment.");
             }
         }
 
+        function clearFlowState() {
+            localStorage.removeItem('senzy_step');
+            localStorage.removeItem('senzy_service');
+            localStorage.removeItem('senzy_pending_since');
+        }
+
+        // ============================================================
+        // Gateway flow rendering
+        // ============================================================
         function renderServiceSelectorUI() {
+            clearError();
             document.getElementById('checkpoint-badge').innerText = "HUB GATEWAY";
             document.getElementById('checkpoint-status').innerText = "SELECT SERVICE (4 ROUNDS)";
 
@@ -390,27 +485,27 @@
                 showModal("Authentication Required", "Please login with Discord first!");
                 return;
             }
-
             localStorage.setItem('senzy_step', '1');
             localStorage.setItem('senzy_service', serviceName);
-            await db.from('sessions').upsert([{ hwid: hwid, step: 1, service: serviceName }]);
+            localStorage.setItem('senzy_pending_since', Date.now().toString());
+            await db.from('sessions').upsert([{ hwid, step: 1, service: serviceName, user_id: currentUser.id }]);
             window.location.href = targetUrl;
         }
 
-        async function renderCheckpointUI(cpStep, serviceName) {
+        function renderCheckpointUI(cpStep, serviceName) {
             document.getElementById('checkpoint-badge').innerText = `STEP ${cpStep} / 4`;
             document.getElementById('checkpoint-status').innerText = "IN PROGRESS";
 
             const contentBox = document.getElementById('content-box');
             let targetUrl = serviceName === 'workink' ? WORKINK_URL : LINKVERTISE_URL;
-
             let btnText = cpStep === 4 ? "Complete Final Step & Get Key" : `Complete Step ${cpStep} ->`;
-            
+
             contentBox.innerHTML = `
                 <button onclick="startCheckpoint('${targetUrl}')" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white py-3.5 rounded-2xl font-bold transition duration-300 shadow-lg shadow-pink-500/20 btn-glow cursor-pointer flex items-center justify-center gap-2 text-sm">
                     <span>${btnText}</span>
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                 </button>
+                <p class="text-[10px] text-zinc-500 text-center mt-3">Complete the page fully — coming back too quickly won't count.</p>
             `;
         }
 
@@ -419,6 +514,7 @@
                 showModal("Authentication Required", "Please login with Discord first!");
                 return;
             }
+            localStorage.setItem('senzy_pending_since', Date.now().toString());
             window.location.href = targetUrl;
         }
 
@@ -428,20 +524,14 @@
                 return;
             }
 
-            const discordId = currentUser.id;
+            const discordId = getDiscordId(currentUser);
             let { data: userKeys, error: fetchError } = await db.from('keys').select('*').eq('discord_id', discordId);
-            
-            if (fetchError) {
-                console.error("Fetch Error:", fetchError.message);
-            }
+            if (fetchError) console.error("Fetch Error:", fetchError.message);
 
             if (userKeys && userKeys.length >= 3) {
-                showModal("Limit Reached", "You have reached the maximum limit of 3 keys per Discord account!", () => {
-                    location.reload();
-                });
+                showModal("Limit Reached", "You have reached the maximum limit of 3 keys per Discord account!", () => location.reload());
                 await db.from('sessions').delete().eq('hwid', hwid);
-                localStorage.removeItem('senzy_step');
-                localStorage.removeItem('senzy_service');
+                clearFlowState();
                 return;
             }
 
@@ -452,37 +542,32 @@
             }
 
             const randomPart = Math.random().toString(36).substring(2, 12).toUpperCase();
-            let newKey = "SKEYX" + randomPart;
-            if (newKey.length > 15) newKey = newKey.substring(0, 15);
-
+            let newKey = ("SKEYX" + randomPart).substring(0, 15);
             const expireTime = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
 
             const payload = {
-                hwid: hwid,
+                hwid,
                 key_string: newKey,
                 step: 4,
                 is_permanent: false,
                 expires_at: expireTime,
-                discord_id: String(discordId)
+                discord_id: String(discordId),
+                user_id: currentUser.id
             };
 
+            let error;
             if (existingDevice) {
-                let { error: updateErr } = await db.from('keys').update(payload).eq('hwid', hwid);
-                if (updateErr) {
-                    showModal("Database Error", updateErr.message);
-                    return;
-                }
+                ({ error } = await db.from('keys').update(payload).eq('hwid', hwid));
             } else {
-                let { error: insertErr } = await db.from('keys').insert([payload]);
-                if (insertErr) {
-                    showModal("Database Error", insertErr.message);
-                    return;
-                }
+                ({ error } = await db.from('keys').insert([payload]));
+            }
+            if (error) {
+                showModal("Database Error", error.message);
+                return;
             }
 
             await db.from('sessions').delete().eq('hwid', hwid);
-            localStorage.removeItem('senzy_step');
-            localStorage.removeItem('senzy_service');
+            clearFlowState();
             renderKeyActiveUI(newKey, expireTime);
         }
 
@@ -490,42 +575,48 @@
             document.getElementById('checkpoint-badge').innerText = "SUCCESS";
             document.getElementById('checkpoint-status').innerText = "KEY ACTIVE";
 
+            const safeKey = escapeHtml(keyString);
             const contentBox = document.getElementById('content-box');
             contentBox.innerHTML = `
-                <div class="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl font-mono text-pink-400 mb-3 select-all break-all text-center text-sm shadow-inner">${keyString}</div>
-                <button onclick="navigator.clipboard.writeText('${keyString}'); showModal('Success', 'Key copied to clipboard successfully!');" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white py-3.5 rounded-2xl font-bold transition duration-300 shadow-lg shadow-pink-500/20 btn-glow cursor-pointer mb-3">Copy Key</button>
+                <div class="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl font-mono text-pink-400 mb-3 select-all break-all text-center text-sm shadow-inner">${safeKey}</div>
+                <button id="copy-key-btn" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white py-3.5 rounded-2xl font-bold transition duration-300 shadow-lg shadow-pink-500/20 btn-glow cursor-pointer mb-3">Copy Key</button>
                 <div class="text-center text-xs text-zinc-400 bg-zinc-900/50 border border-zinc-800 py-2.5 rounded-xl">
                     ⏳ Expires in: <span id="countdown-timer" class="font-mono text-pink-400 font-bold">Calculating...</span>
                 </div>
             `;
+            document.getElementById('copy-key-btn').addEventListener('click', () => {
+                navigator.clipboard.writeText(keyString);
+                showModal('Success', 'Key copied to clipboard successfully!');
+            });
 
-            startCountdown(expiresAt);
+            if (expiresAt) {
+                startCountdown(expiresAt);
+            } else {
+                document.getElementById('countdown-timer').innerText = 'Never (Permanent)';
+            }
         }
 
         function startCountdown(expireDateStr) {
+            if (countdownIntervalId) clearInterval(countdownIntervalId);
             const expireTime = new Date(expireDateStr).getTime();
 
-            const timerInterval = setInterval(async () => {
-                const now = new Date().getTime();
-                const distance = expireTime - now;
-
+            countdownIntervalId = setInterval(async () => {
+                const distance = expireTime - Date.now();
                 if (distance < 0) {
-                    clearInterval(timerInterval);
-                    document.getElementById('countdown-timer').innerText = "EXPIRED";
+                    clearInterval(countdownIntervalId);
+                    countdownIntervalId = null;
+                    const timerEl = document.getElementById('countdown-timer');
+                    if (timerEl) timerEl.innerText = "EXPIRED";
                     await db.from('keys').delete().eq('hwid', hwid);
-                    localStorage.removeItem('senzy_step');
-                    localStorage.removeItem('senzy_service');
-                    showModal("Expired", "Your key has expired! Please generate a new key.", () => {
-                        location.reload();
-                    });
+                    clearFlowState();
+                    showModal("Expired", "Your key has expired! Please generate a new key.", () => location.reload());
                     return;
                 }
-
                 const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                 const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
                 const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
-                document.getElementById('countdown-timer').innerText = `${hours}h ${minutes}m ${seconds}s`;
+                const timerEl = document.getElementById('countdown-timer');
+                if (timerEl) timerEl.innerText = `${hours}h ${minutes}m ${seconds}s`;
             }, 1000);
         }
 
@@ -540,19 +631,21 @@
                 return;
             }
 
-            if (confirm("Are you sure you want to reset this device HWID? (Limited to once every 6 hours)")) {
+            if (!confirm("Are you sure you want to reset this device HWID? (Limited to once every 6 hours)")) return;
+
+            if (db) {
                 await db.from('keys').delete().eq('hwid', hwid);
                 await db.from('sessions').delete().eq('hwid', hwid);
-                localStorage.removeItem('senzy_step');
-                localStorage.removeItem('senzy_service');
-                localStorage.setItem('senzy_last_reset', now.toString());
-                localStorage.removeItem('senzy_device_hwid');
-                showModal("Success", "HWID reset successfully!", () => {
-                    location.reload();
-                });
             }
+            clearFlowState();
+            localStorage.setItem('senzy_last_reset', now.toString());
+            localStorage.removeItem('senzy_device_hwid');
+            showModal("Success", "HWID reset successfully!", () => location.reload());
         }
 
+        // ============================================================
+        // Dashboard (per-user key history)
+        // ============================================================
         async function openDashboard() {
             if (!currentUser) {
                 showModal("Authentication Required", "Please login with Discord first!");
@@ -563,7 +656,13 @@
             modal.classList.remove('hidden');
             content.innerHTML = `<p class="text-zinc-400">Loading your key history...</p>`;
 
-            let { data: keys } = await db.from('keys').select('*').eq('discord_id', currentUser.id).order('id', { ascending: false });
+            const discordId = getDiscordId(currentUser);
+            let { data: keys, error } = await db.from('keys').select('*').eq('discord_id', discordId).order('id', { ascending: false });
+
+            if (error) {
+                content.innerHTML = `<p class="text-red-400">Couldn't load your keys right now.</p>`;
+                return;
+            }
 
             if (keys && keys.length > 0) {
                 let html = `<div class="space-y-2 max-h-60 overflow-y-auto">`;
@@ -573,11 +672,11 @@
                     html += `
                         <div class="bg-zinc-950 border border-zinc-800 p-3 rounded-xl">
                             <div class="flex justify-between items-center mb-1">
-                                <span class="font-mono text-pink-400 font-bold">${k.key_string}</span>
+                                <span class="font-mono text-pink-400 font-bold">${escapeHtml(k.key_string)}</span>
                                 <span class="text-[10px] px-2 py-0.5 rounded ${isExpired ? 'bg-red-500/10 text-red-400' : 'bg-pink-500/10 text-pink-400'}">${isExpired ? 'Expired' : 'Active'}</span>
                             </div>
-                            <div class="text-[11px] text-zinc-400">Expires: ${expireText}</div>
-                            <div class="text-[10px] text-zinc-600 truncate">Device ID: ${k.hwid}</div>
+                            <div class="text-[11px] text-zinc-400">Expires: ${escapeHtml(expireText)}</div>
+                            <div class="text-[10px] text-zinc-600 truncate">Device ID: ${escapeHtml(k.hwid)}</div>
                         </div>
                     `;
                 });
@@ -592,6 +691,9 @@
             document.getElementById('dashboard-modal').classList.add('hidden');
         }
 
+        // ============================================================
+        // Auth
+        // ============================================================
         async function loginWithDiscord() {
             const { error } = await db.auth.signInWithOAuth({
                 provider: 'discord',
@@ -605,10 +707,19 @@
             location.href = window.location.origin;
         }
 
+        // ============================================================
+        // Admin panel
+        // Note: the UI only *hides* this tab from non-admins — the real
+        // enforcement now happens in Supabase RLS policies (see the SQL
+        // shared alongside this file). Without that, anyone could open
+        // devtools and call these functions directly.
+        // ============================================================
         async function loadAdminKeys() {
             let { data: keys, error } = await db.from('keys').select('*').order('id', { ascending: false });
             if (error) {
                 console.error("Load Keys Error:", error.message);
+                document.getElementById('admin-keys-table-body').innerHTML =
+                    `<tr><td colspan="3" class="p-4 text-center text-red-400 text-xs">Couldn't load keys (check RLS policy / admin membership).</td></tr>`;
                 return;
             }
 
@@ -618,14 +729,14 @@
                 keys.forEach(k => {
                     let isExpired = k.expires_at && new Date(k.expires_at) < new Date();
                     rows += `<tr class="border-b border-zinc-800/80 text-xs hover:bg-zinc-900/40 transition">
-                        <td class="p-2.5 font-mono text-pink-400 font-bold">${k.key_string}</td>
+                        <td class="p-2.5 font-mono text-pink-400 font-bold">${escapeHtml(k.key_string)}</td>
                         <td class="p-2.5">
                             <span class="text-[10px] px-2 py-0.5 rounded ${isExpired ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-pink-500/10 text-pink-400 border border-pink-500/20'}">
                                 ${isExpired ? 'Expired' : 'Active'}
                             </span>
                         </td>
                         <td class="p-2.5 text-right flex items-center justify-end gap-1.5">
-                            <button onclick="navigator.clipboard.writeText('${k.key_string}'); showModal('Success', 'Key copied to clipboard!');" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer">Copy</button>
+                            <button onclick="copyKeyValue('${escapeHtml(k.key_string)}')" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer">Copy</button>
                             <button onclick="deleteKey('${k.id}')" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer">Delete</button>
                         </td>
                     </tr>`;
@@ -636,49 +747,57 @@
             tbody.innerHTML = rows;
         }
 
+        function copyKeyValue(key) {
+            navigator.clipboard.writeText(key);
+            showModal('Success', 'Key copied to clipboard!');
+        }
+
         async function createCustomKey() {
-            let finalKey = "";
-            const durationType = document.getElementById('key-duration-select').value;
+            const btn = document.getElementById('create-key-btn');
+            await withBusyGuard(btn, async () => {
+                let finalKey = "";
+                const durationType = document.getElementById('key-duration-select').value;
 
-            if(genMode === 'auto') {
-                const randomPart = Math.random().toString(36).substring(2, 12).toUpperCase();
-                finalKey = "SKEYX" + randomPart;
-                if(finalKey.length > 15) finalKey = finalKey.substring(0, 15);
-            } else {
-                const customVal = document.getElementById('custom-key-input').value.trim();
-                if(!customVal) {
-                    showModal("Warning", "Please enter a key suffix!");
-                    return;
+                if (genMode === 'auto') {
+                    const randomPart = Math.random().toString(36).substring(2, 12).toUpperCase();
+                    finalKey = ("SKEYX" + randomPart).substring(0, 15);
+                } else {
+                    const rawInput = document.getElementById('custom-key-input').value.trim();
+                    // Only allow letters/numbers — the key gets rendered back into
+                    // the page later, so anything else is a potential XSS payload.
+                    const customVal = rawInput.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+                    if (!customVal) {
+                        showModal("Warning", "Please enter a valid key suffix (letters and numbers only)!");
+                        return;
+                    }
+                    finalKey = ("SKEYX" + customVal).substring(0, 15);
                 }
-                finalKey = "SKEYX" + customVal;
-                if(finalKey.length > 15) finalKey = finalKey.substring(0, 15);
-            }
 
-            let expireTime = null;
-            let isPerm = false;
-            if(durationType === '12hours') {
-                expireTime = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
-            } else if(durationType === '7days') {
-                expireTime = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-            } else if(durationType === 'permanent') {
-                isPerm = true;
-            }
+                let expireTime = null;
+                let isPerm = false;
+                if (durationType === '12hours') {
+                    expireTime = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
+                } else if (durationType === '7days') {
+                    expireTime = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+                } else if (durationType === 'permanent') {
+                    isPerm = true;
+                }
 
-            let insertPayload = {
-                key_string: finalKey,
-                step: 4,
-                is_permanent: isPerm,
-                expires_at: expireTime
-            };
+                let { error } = await db.from('keys').insert([{
+                    key_string: finalKey,
+                    step: 4,
+                    is_permanent: isPerm,
+                    expires_at: expireTime
+                }]);
 
-            let { error } = await db.from('keys').insert([insertPayload]);
-            if (error) {
-                showModal("Error", error.message);
-            } else { 
-                showModal("Success", "Key created successfully: " + finalKey); 
-                document.getElementById('custom-key-input').value = "";
-                loadAdminKeys(); 
-            }
+                if (error) {
+                    showModal("Error", error.message);
+                } else {
+                    showModal("Success", "Key created successfully: " + finalKey);
+                    document.getElementById('custom-key-input').value = "";
+                    loadAdminKeys();
+                }
+            })();
         }
 
         async function deleteKey(id) {
@@ -687,7 +806,7 @@
             if (error) {
                 showModal("Error", error.message);
             } else {
-                loadAdminKeys(); 
+                loadAdminKeys();
             }
         }
 
