@@ -6,7 +6,7 @@
     <title>SenzyHub - Premium Key System</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Supabase JS Library -->
+    <!-- Supabase JS Library (ประกาศครั้งเดียวตรงนี้ ไม่ซ้ำซ้อน) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -57,11 +57,12 @@
     </div>
 
     <script>
-        // ดึงค่าจาก Env ผ่าน Vercel Runtime Injection หรือถ้าเทสในเครื่องให้ใส่ค่าสำรองไว้
-        const SUPABASE_URL = window.ENV_SUPABASE_URL || "https://mydgdxlzpjvxeyvuhwzs.supabase.co";
-        const SUPABASE_ANON_KEY = window.ENV_SUPABASE_ANON_KEY || "ใส่_Anon_Key_สำรองถ้าเทสในเครื่อง";
-        const ADMIN_DISCORD_ID = window.ENV_ADMIN_DISCORD_ID || "ใส่_Admin_ID_สำรองถ้าเทสในเครื่อง";
+        // --- ใส่ข้อมูลจริงลงไปตรงนี้ได้เลย ไม่พัง ไม่ต้องกลัวรวน ---
+        const SUPABASE_URL = "https://mydgdxlzpjvxeyvuhwzs.supabase.co";
+        const SUPABASE_ANON_KEY = "เอา_Anon_Key_ของมึงมาใส่ตรงนี้";
+        const ADMIN_DISCORD_ID = "เอา_Discord_ID_แอดมินของมึงมาใส่ตรงนี้";
 
+        // ประกาศตัวแปร supabase แค่ครั้งเดียวถ้วน
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         const urlParams = new URLSearchParams(window.location.search);
         const hwid = urlParams.get('hwid');
