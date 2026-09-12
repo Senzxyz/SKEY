@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SenzyHub - Premium Key System</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/senzxyz2xxx/SenzyHub/refs/heads/main/senz2.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -153,6 +155,7 @@
 
         const LINKVERTISE_URL = "https://link-target.net/7950760/vsAnb7PqtP96";
         const WORKINK_URL = "https://work.ink/2XLb/senzy-hub-get-key";
+        const SECURE_TOKEN = "senzy_pass_token_99"; // โทเค็นลับป้องกันการกดข้าม
 
         function showModal(title, message, callback = null) {
             document.getElementById('modal-title').innerText = title;
@@ -272,10 +275,28 @@
                     }
                 }
 
+                // ตรวจสอบพารามิเตอร์ขากลับ (Token) เพื่อป้องกันการ Bypass
+                const urlParams = new URLSearchParams(window.location.search);
+                const returnedToken = urlParams.get('token');
+
                 let { data: sessionData } = await db.from('sessions').select('*').eq('hwid', hwid).single();
+
                 if (!sessionData) {
                     renderServiceSelectorUI();
                 } else {
+                    if (returnedToken === SECURE_TOKEN) {
+                        // ผ่านโฆษณามาจริง ขยับสเตปขึ้น
+                        let nextStep = sessionData.step + 1;
+                        if (nextStep > 4) {
+                            window.history.replaceState({}, document.title, window.location.pathname);
+                            await finalizeKeyGeneration();
+                            return;
+                        } else {
+                            await db.from('sessions').update({ step: nextStep }).eq('hwid', hwid);
+                            window.history.replaceState({}, document.title, window.location.pathname);
+                            sessionData.step = nextStep;
+                        }
+                    }
                     renderCheckpointUI(sessionData.step, sessionData.service);
                 }
 
@@ -323,7 +344,9 @@
             }
 
             await db.from('sessions').upsert([{ hwid: hwid, step: 1, service: serviceName }]);
-            window.location.href = targetUrl;
+            // แนบ Token ขากลับไปกับ URL ของโฆษณา
+            const callbackUrl = encodeURIComponent(window.location.origin + window.location.pathname + "?token=" + SECURE_TOKEN);
+            window.location.href = targetUrl + (targetUrl.includes('?') ? '&' : '?') + "r=" + callbackUrl;
         }
 
         async function renderCheckpointUI(cpStep, serviceName) {
@@ -336,27 +359,21 @@
             let btnText = cpStep === 4 ? "Complete Final Step & Get Key" : `Complete Step ${cpStep} ->`;
             
             contentBox.innerHTML = `
-                <button onclick="startCheckpoint(${cpStep}, '${targetUrl}')" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white py-3.5 rounded-2xl font-bold transition duration-300 shadow-lg shadow-pink-500/20 btn-glow cursor-pointer flex items-center justify-center gap-2 text-sm">
+                <button onclick="startCheckpoint('${targetUrl}')" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white py-3.5 rounded-2xl font-bold transition duration-300 shadow-lg shadow-pink-500/20 btn-glow cursor-pointer flex items-center justify-center gap-2 text-sm">
                     <span>${btnText}</span>
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                 </button>
             `;
         }
 
-        async function startCheckpoint(step, targetUrl) {
+        async function startCheckpoint(targetUrl) {
             if (!currentUser) {
                 showModal("Authentication Required", "Please login with Discord first!");
                 return;
             }
 
-            let nextStep = step + 1;
-            if (nextStep > 4) {
-                await finalizeKeyGeneration();
-                return;
-            }
-
-            await db.from('sessions').update({ step: nextStep }).eq('hwid', hwid);
-            window.location.href = targetUrl;
+            const callbackUrl = encodeURIComponent(window.location.origin + window.location.pathname + "?token=" + SECURE_TOKEN);
+            window.location.href = targetUrl + (targetUrl.includes('?') ? '&' : '?') + "r=" + callbackUrl;
         }
 
         async function finalizeKeyGeneration() {
