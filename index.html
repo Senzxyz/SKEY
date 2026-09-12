@@ -96,7 +96,7 @@
         }
 
         async function init() {
-            // เคลียร์ URL ให้สะอาด ถ้ายมี token ยาวๆ ติดมาหลังบ้าน
+            // เคลียร์ URL ให้สะอาด
             if (window.location.hash && window.location.hash.includes('access_token')) {
                 window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
             }
@@ -108,9 +108,13 @@
                 const user = session.user;
                 const metadata = user.user_metadata || {};
                 
-                // ดึงชื่อและรูปโปรไฟล์จากทุกจุดที่ Discord ส่งมาให้
-                const username = metadata.full_name || metadata.name || metadata.custom_name || metadata.preferred_username || 'User';
-                const avatar = metadata.avatar_url || metadata.picture || metadata.avatar || 'https://cdn.jsdelivr.net/npm/@tabler/icons@latest/icons/user.svg';
+                const username = metadata.full_name || metadata.name || metadata.custom_name || metadata.preferred_username || user.email?.split('@')[0] || 'User';
+                
+                // ดึงรูปโปรไฟล์จาก Metadata หรือถ้าไม่มี ใช้ UI Avatars สร้างรูปตัวอักษรแรกเท่ๆ แทนทันที ไม่มีวันพังเป็นภาพแตก!
+                let avatar = metadata.avatar_url || metadata.picture || metadata.avatar;
+                if (!avatar) {
+                    avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=5865F2&color=fff&bold=true`;
+                }
                 
                 authBtnDiv.innerHTML = `
                     <div class="flex items-center gap-2 bg-zinc-900/80 border border-zinc-800 px-3 py-1.5 rounded-xl text-xs font-semibold text-zinc-200">
