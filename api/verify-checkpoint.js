@@ -94,4 +94,8 @@ export default async function handler(req, res) {
     console.error('verify-checkpoint error:', err);
     return res.status(500).json({ ok: false, error: 'Internal verification error.' });
   }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> f48d2f2488e062ddc0f0d5660eecbd83a61f95da
