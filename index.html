@@ -60,7 +60,6 @@
                     <span id="checkpoint-badge" class="bg-pink-500/10 border border-pink-500/20 text-pink-400 text-xs font-bold px-3 py-1 rounded-lg">CHECKPOINT 1 / 3</span>
                     <span id="checkpoint-status" class="text-xs text-zinc-400 font-medium">IN PROGRESS</span>
                 </div>
-                <!-- Tester Bypass Button -->
                 <button onclick="testerBypass()" class="bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 text-[10px] font-bold px-2.5 py-1 rounded-lg transition cursor-pointer">⚡ Tester Bypass</button>
             </div>
 
@@ -301,7 +300,6 @@
             window.location.href = LINKVERTISE_URL;
         }
 
-        // Tester Bypass: ข้าม 3 เช็คพอยต์รวดในคลิกเดียว
         async function testerBypass() {
             if (!currentUser) {
                 alert("Please login with Discord first for testing!");
@@ -332,31 +330,32 @@
             let newKey = "SKEYX" + randomPart;
             if (newKey.length > 15) newKey = newKey.substring(0, 15);
 
-            const expireTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 Hours
+            const expireTime = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
 
             if (existingDevice) {
-                await db.from('keys').update({
+                let updatePayload = {
                     key_string: newKey,
                     step: 3,
                     expires_at: expireTime,
                     discord_id: discordId,
                     updated_at: new Date().toISOString()
-                }).eq('hwid', hwid);
+                };
+                await db.from('keys').update(updatePayload).eq('hwid', hwid);
             } else {
-                await db.from('keys').insert([{
+                let insertPayload = {
                     hwid: hwid,
                     key_string: newKey,
                     step: 3,
                     expires_at: expireTime,
                     discord_id: discordId
-                }]);
+                };
+                await db.from('keys').insert([insertPayload]);
             }
 
             await db.from('sessions').delete().eq('hwid', hwid);
             renderKeyActiveUI(newKey, expireTime);
         }
 
-        // แสดงหน้า Key Active พร้อมปุ่ม Copy และ Timer นับเวลาถอยหลัง
         function renderKeyActiveUI(keyString, expiresAt) {
             document.getElementById('checkpoint-badge').innerText = "SUCCESS";
             document.getElementById('checkpoint-status').innerText = "KEY ACTIVE";
@@ -373,7 +372,6 @@
             startCountdown(expiresAt);
         }
 
-        // ฟังก์ชันจับเวลาถอยหลัง (Countdown Timer)
         function startCountdown(expireDateStr) {
             const expireTime = new Date(expireDateStr).getTime();
 
@@ -426,7 +424,7 @@
             modal.classList.remove('hidden');
             content.innerHTML = `<p class="text-zinc-400">Loading your key history...</p>`;
 
-            let { data: keys } = await db.from('keys').select('*').eq('discord_id', currentUser.id).order('id', { ascending: false });
+            let { data: keys } = await db.from('keys').select('*').eq('discord_id', currentUser.id).order('created_at', { ascending: false });
 
             if (keys && keys.length > 0) {
                 let html = `<div class="space-y-2 max-h-60 overflow-y-auto">`;
@@ -469,7 +467,7 @@
         }
 
         async function loadAdminKeys() {
-            let { data: keys } = await db.from('keys').select('*').order('id', { ascending: false });
+            let { data: keys } = await db.from('keys').select('*').order('created_at', { ascending: false });
             let tbody = document.getElementById('admin-keys-table-body');
             let rows = '';
             if (keys) {
@@ -504,7 +502,13 @@
                 expireTime = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
             }
 
-            let { error } = await db.from('keys').insert([{ key_string: finalKey, step: 3, expires_at: expireTime }]);
+            let insertPayload = {
+                key_string: finalKey,
+                step: 3,
+                expires_at: expireTime
+            };
+
+            let { error } = await db.from('keys').insert([insertPayload]);
             if (error) alert("Error: " + error.message);
             else { 
                 alert("Key created successfully: " + finalKey); 
