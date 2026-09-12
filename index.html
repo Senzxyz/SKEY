@@ -146,6 +146,7 @@
         let genMode = 'auto';
 
         const LINKVERTISE_URL = "https://link-target.net/7950760/vsAnb7PqtP96";
+        const WORKINK_URL = "https://work.ink/2XLb/senzy-hub-get-key";
 
         function getDeviceHwid() {
             let id = localStorage.getItem('senzy_device_hwid');
@@ -235,7 +236,6 @@
 
                 document.getElementById('hwid-status-label').innerText = "Device: " + hwid.substring(0, 12) + "...";
 
-                // เช็คคีย์ในระบบว่ามีอยู่จริงและยังไม่หมดอายุไหม
                 let { data: existingKey } = await db.from('keys').select('*').eq('hwid', hwid).single();
 
                 if (existingKey && existingKey.key_string) {
@@ -244,18 +244,16 @@
                         renderKeyActiveUI(existingKey.key_string, existingKey.expires_at);
                         return;
                     } else {
-                        // ถ้าคีย์หมดอายุแล้ว ให้ลบคีย์ทิ้งและเคลียร์เซสชันเพื่อให้กลับไปหน้าเลือกบริการใหม่
                         await db.from('keys').delete().eq('hwid', hwid);
                         await db.from('sessions').delete().eq('hwid', hwid);
                     }
                 }
 
-                // เช็คว่ามีเซสชันค้างอยู่ไหม ถ้าไม่มีให้โชว์หน้าเลือกบริการ (Service Selector)
                 let { data: sessionData } = await db.from('sessions').select('*').eq('hwid', hwid).single();
                 if (!sessionData) {
                     renderServiceSelectorUI();
                 } else {
-                    renderCheckpointUI(sessionData.step);
+                    renderCheckpointUI(sessionData.step, sessionData.service);
                 }
 
             } catch (err) {
@@ -263,31 +261,30 @@
             }
         }
 
-        // หน้าจอให้ผู้ใช้เลือกบริการลิงก์โฆษณา (Service Selector)
         function renderServiceSelectorUI() {
             document.getElementById('checkpoint-badge').innerText = "HUB GATEWAY";
-            document.getElementById('checkpoint-status').innerText = "SELECT SERVICE";
+            document.getElementById('checkpoint-status').innerText = "SELECT SERVICE (4 ROUNDS)";
 
             const contentBox = document.getElementById('content-box');
             contentBox.innerHTML = `
-                <div class="text-xs text-zinc-300 font-semibold mb-3 text-center">Please select your preferred monetization service:</div>
+                <div class="text-xs text-zinc-300 font-semibold mb-3 text-center">Select your gateway service (Total 4 steps):</div>
                 <div class="space-y-3">
-                    <button onclick="selectService('linkvertise')" class="w-full bg-zinc-900 border border-zinc-800 hover:border-pink-500/50 p-4 rounded-2xl flex items-center justify-between transition group cursor-pointer">
+                    <button onclick="selectService('linkvertise', '${LINKVERTISE_URL}')" class="w-full bg-zinc-900 border border-zinc-800 hover:border-pink-500/50 p-4 rounded-2xl flex items-center justify-between transition group cursor-pointer">
                         <div class="flex items-center gap-3">
                             <div class="w-8 h-8 rounded-xl bg-pink-500/10 border border-pink-500/30 flex items-center justify-center text-pink-400 font-bold text-xs">LV</div>
                             <div class="text-left">
                                 <div class="text-xs font-bold text-white group-hover:text-pink-400 transition">Linkvertise Gateway</div>
-                                <div class="text-[10px] text-zinc-500">3 Checkpoints required</div>
+                                <div class="text-[10px] text-zinc-500">1 Extra Gateway + 3 Checkpoints</div>
                             </div>
                         </div>
                         <svg class="w-4 h-4 text-zinc-500 group-hover:text-pink-400 transition" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
                     </button>
-                    <button onclick="selectService('more')" class="w-full bg-zinc-900 border border-zinc-800 hover:border-purple-500/50 p-4 rounded-2xl flex items-center justify-between transition group cursor-pointer">
+                    <button onclick="selectService('workink', '${WORKINK_URL}')" class="w-full bg-zinc-900 border border-zinc-800 hover:border-purple-500/50 p-4 rounded-2xl flex items-center justify-between transition group cursor-pointer">
                         <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 font-bold text-xs">MR</div>
+                            <div class="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 font-bold text-xs">WI</div>
                             <div class="text-left">
-                                <div class="text-xs font-bold text-white group-hover:text-purple-400 transition">Alternative Gateway (More)</div>
-                                <div class="text-[10px] text-zinc-500">Fast alternative link system</div>
+                                <div class="text-xs font-bold text-white group-hover:text-purple-400 transition">Work.ink Gateway</div>
+                                <div class="text-[10px] text-zinc-500">1 Extra Gateway + 3 Checkpoints</div>
                             </div>
                         </div>
                         <svg class="w-4 h-4 text-zinc-500 group-hover:text-purple-400 transition" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
@@ -296,46 +293,48 @@
             `;
         }
 
-        async function selectService(serviceType) {
+        async function selectService(serviceName, targetUrl) {
             if (!currentUser) {
                 alert("Please login with Discord first!");
                 return;
             }
 
-            // บันทึกเริ่มต้นเซสชันที่ Checkpoint 1
-            await db.from('sessions').upsert([{ hwid: hwid, step: 1 }]);
-            renderCheckpointUI(1);
+            // บันทึกเซสชันเริ่มต้นที่สเตป 1 (โดยรอบแรกสุดจะพาไปหน้าเว็บตัวเลือกที่เลือกก่อน)
+            await db.from('sessions').upsert([{ hwid: hwid, step: 1, service: serviceName }]);
+            window.location.href = targetUrl;
         }
 
-        async function renderCheckpointUI(cpStep) {
-            document.getElementById('checkpoint-badge').innerText = `CHECKPOINT ${cpStep} / 3`;
+        async function renderCheckpointUI(cpStep, serviceName) {
+            document.getElementById('checkpoint-badge').innerText = `STEP ${cpStep} / 4`;
             document.getElementById('checkpoint-status').innerText = "IN PROGRESS";
 
             const contentBox = document.getElementById('content-box');
-            let btnText = cpStep === 3 ? "Complete Final Checkpoint & Get Key" : `Complete Checkpoint ${cpStep} ->`;
+            let targetUrl = serviceName === 'workink' ? WORKINK_URL : LINKVERTISE_URL;
+
+            let btnText = cpStep === 4 ? "Complete Final Step & Get Key" : `Complete Step ${cpStep} ->`;
             
             contentBox.innerHTML = `
-                <button onclick="startCheckpoint(${cpStep})" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white py-3.5 rounded-2xl font-bold transition duration-300 shadow-lg shadow-pink-500/20 btn-glow cursor-pointer flex items-center justify-center gap-2 text-sm">
+                <button onclick="startCheckpoint(${cpStep}, '${targetUrl}')" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white py-3.5 rounded-2xl font-bold transition duration-300 shadow-lg shadow-pink-500/20 btn-glow cursor-pointer flex items-center justify-center gap-2 text-sm">
                     <span>${btnText}</span>
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                 </button>
             `;
         }
 
-        async function startCheckpoint(step) {
+        async function startCheckpoint(step, targetUrl) {
             if (!currentUser) {
                 alert("Please login with Discord first!");
                 return;
             }
 
             let nextStep = step + 1;
-            if (nextStep > 3) {
+            if (nextStep > 4) {
                 await finalizeKeyGeneration();
                 return;
             }
 
             await db.from('sessions').update({ step: nextStep }).eq('hwid', hwid);
-            window.location.href = LINKVERTISE_URL;
+            window.location.href = targetUrl;
         }
 
         async function testerBypass() {
@@ -343,7 +342,7 @@
                 alert("Please login with Discord first for testing!");
                 return;
             }
-            await db.from('sessions').upsert([{ hwid: hwid, step: 3 }]);
+            await db.from('sessions').upsert([{ hwid: hwid, step: 4 }]);
             await finalizeKeyGeneration();
         }
 
@@ -368,13 +367,12 @@
             let newKey = "SKEYX" + randomPart;
             if (newKey.length > 15) newKey = newKey.substring(0, 15);
 
-            // ตั้งเวลาหมดอายุใน 12 ชั่วโมงเป๊ะๆ
             const expireTime = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
 
             if (existingDevice) {
                 await db.from('keys').update({
                     key_string: newKey,
-                    step: 3,
+                    step: 4,
                     is_permanent: false,
                     expires_at: expireTime,
                     discord_id: discordId,
@@ -384,7 +382,7 @@
                 await db.from('keys').insert([{
                     hwid: hwid,
                     key_string: newKey,
-                    step: 3,
+                    step: 4,
                     is_permanent: false,
                     expires_at: expireTime,
                     discord_id: discordId
@@ -421,7 +419,6 @@
                 if (distance < 0) {
                     clearInterval(timerInterval);
                     document.getElementById('countdown-timer').innerText = "EXPIRED";
-                    // ถ้าหมดอายุ ให้ลบคีย์ออกจากฐานข้อมูลแล้วรีเฟรชกลับไปหน้า Get Key ใหม่
                     await db.from('keys').delete().eq('hwid', hwid);
                     alert("Your key has expired! Please generate a new key.");
                     location.reload();
@@ -552,7 +549,7 @@
 
             let insertPayload = {
                 key_string: finalKey,
-                step: 3,
+                step: 4,
                 is_permanent: isPerm,
                 expires_at: expireTime
             };
