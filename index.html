@@ -46,7 +46,7 @@
                     <h1 class="text-lg font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400 tracking-tight">SenzyHub</h1>
                 </div>
             </div>
-            <a href="https://discord.gg/your-discord" target="_blank" class="text-xs text-zinc-400 hover:text-white transition flex items-center gap-1 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-xl">
+            <a href="https://discord.gg/rhPgnAJE4B" target="_blank" class="text-xs text-zinc-400 hover:text-white transition flex items-center gap-1 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-xl">
                 <span>HOW TO GET KEY?</span>
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
             </a>
@@ -130,7 +130,7 @@
 
     <div class="mt-6 text-xs text-zinc-500 flex items-center gap-1.5 z-20">
         <span>Need help?</span>
-        <a href="https://discord.gg/your-discord" target="_blank" class="text-pink-400 hover:text-pink-300 font-semibold transition underline decoration-pink-500/40">Join our Discord</a>
+        <a href="https://discord.gg/rhPgnAJE4B" target="_blank" class="text-pink-400 hover:text-pink-300 font-semibold transition underline decoration-pink-500/40">Join our Discord</a>
     </div>
 
     <!-- Custom Modal Popup System -->
@@ -178,6 +178,14 @@
         // Query params Supabase / OAuth can attach on redirect back to us.
         // These must never be mistaken for "returned from an ad gateway".
         const OAUTH_PARAMS = ['code', 'error', 'error_description', 'state', 'provider'];
+
+        // If a checkpoint step was set this long ago and there's no plausible
+        // signal that the user actually just came back from a gateway, we
+        // treat the run as abandoned and reset back to the service selector.
+        // Without this, senzy_step lives in localStorage forever and a user
+        // who closes the tab mid-flow gets stuck re-seeing the same
+        // checkpoint days later instead of starting fresh.
+        const FLOW_STALE_MS = 20 * 60 * 1000; // 20 minutes
 
         // ============================================================
         // Small utilities
@@ -403,6 +411,22 @@
                     localStorage.setItem('senzy_service', localService);
                 }
 
+                // If a checkpoint run was started but abandoned (tab closed,
+                // came back days later, etc.) and there's no real sign the
+                // user is actually returning from a gateway right now, drop
+                // the stale run and send them back to the service selector
+                // instead of showing them stuck on the same old step forever.
+                if (localStep > 0) {
+                    const setAt = parseInt(localStorage.getItem('senzy_step_set_at') || '0', 10);
+                    const isStale = !setAt || (Date.now() - setAt > FLOW_STALE_MS);
+                    if (isStale && !looksLikePlausibleGatewayReturn()) {
+                        await db.from('sessions').delete().eq('hwid', hwid);
+                        clearFlowState();
+                        localStep = 0;
+                        localService = '';
+                    }
+                }
+
                 if (localStep === 0) {
                     // Nobody has started a gateway run yet. Any query params here
                     // (OAuth code, a manually typed param, etc.) are just noise —
@@ -415,6 +439,7 @@
                     if (returnAttempted && looksLikePlausibleGatewayReturn()) {
                         localStep += 1;
                         localStorage.setItem('senzy_step', localStep.toString());
+                        localStorage.setItem('senzy_step_set_at', Date.now().toString());
                         localStorage.removeItem('senzy_pending_since');
                         window.history.replaceState({}, document.title, window.location.pathname);
 
@@ -442,6 +467,7 @@
             localStorage.removeItem('senzy_step');
             localStorage.removeItem('senzy_service');
             localStorage.removeItem('senzy_pending_since');
+            localStorage.removeItem('senzy_step_set_at');
         }
 
         // ============================================================
@@ -488,6 +514,7 @@
             localStorage.setItem('senzy_step', '1');
             localStorage.setItem('senzy_service', serviceName);
             localStorage.setItem('senzy_pending_since', Date.now().toString());
+            localStorage.setItem('senzy_step_set_at', Date.now().toString());
             await db.from('sessions').upsert([{ hwid, step: 1, service: serviceName, user_id: currentUser.id }]);
             window.location.href = targetUrl;
         }
