@@ -154,7 +154,6 @@
         const LINKVERTISE_URL = "https://link-target.net/7950760/vsAnb7PqtP96";
         const WORKINK_URL = "https://work.ink/2XLb/senzy-hub-get-key";
 
-        // ฟังก์ชันเปิด Modal Popup สวยๆ แทน alert แบบเดิม
         function showModal(title, message, callback = null) {
             document.getElementById('modal-title').innerText = title;
             document.getElementById('modal-message').innerText = message;
@@ -493,7 +492,7 @@
             modal.classList.remove('hidden');
             content.innerHTML = `<p class="text-zinc-400">Loading your key history...</p>`;
 
-            let { data: keys } = await db.from('keys').select('*').eq('discord_id', currentUser.id).order('created_at', { ascending: false });
+            let { data: keys } = await db.from('keys').select('*').eq('discord_id', currentUser.id).order('id', { ascending: false });
 
             if (keys && keys.length > 0) {
                 let html = `<div class="space-y-2 max-h-60 overflow-y-auto">`;
@@ -536,7 +535,12 @@
         }
 
         async function loadAdminKeys() {
-            let { data: keys } = await db.from('keys').select('*').order('created_at', { ascending: false });
+            let { data: keys, error } = await db.from('keys').select('*').order('id', { ascending: false });
+            if (error) {
+                console.error("Load Keys Error:", error.message);
+                return;
+            }
+
             let tbody = document.getElementById('admin-keys-table-body');
             let rows = '';
             if (keys && keys.length > 0) {
@@ -602,7 +606,7 @@
             } else { 
                 showModal("Success", "Key created successfully: " + finalKey); 
                 document.getElementById('custom-key-input').value = "";
-                loadAdminKeys(); // อัปเดตตารางแอดมินทันที
+                loadAdminKeys(); 
             }
         }
 
@@ -612,7 +616,7 @@
             if (error) {
                 showModal("Error", error.message);
             } else {
-                loadAdminKeys(); // อัปเดตตารางแอดมินทันทีหลังลบ
+                loadAdminKeys(); 
             }
         }
 
