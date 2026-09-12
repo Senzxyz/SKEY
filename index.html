@@ -48,17 +48,17 @@
             </a>
         </div>
 
-        <!-- Admin / User Tabs (จะแสดงเมื่อเป็น Admin เท่านั้น) -->
+        <!-- Admin / User Tabs -->
         <div id="admin-tabs-container" class="hidden flex gap-2 mb-5 pb-3 border-b border-zinc-800/80">
             <button onclick="switchTab('key-system')" id="tab-key-btn" class="flex-1 bg-pink-600 text-white text-xs font-bold py-2 rounded-xl transition cursor-pointer">Key System</button>
             <button onclick="switchTab('admin-panel')" id="tab-admin-btn" class="flex-1 bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold py-2 rounded-xl transition cursor-pointer">Admin Panel</button>
         </div>
 
-        <!-- สถานะ Checkpoint -->
+        <!-- หน้า Key System หลัก -->
         <div id="view-key-system">
             <div class="flex items-center gap-2 mb-6">
-                <span id="checkpoint-badge" class="bg-pink-500/10 border border-pink-500/20 text-pink-400 text-xs font-bold px-3 py-1 rounded-lg">CHECKPOINT 1 / 2</span>
-                <span id="checkpoint-status" class="text-xs text-zinc-400 font-medium">IN PROGRESS</span>
+                <span id="checkpoint-badge" class="bg-pink-500/10 border border-pink-500/20 text-pink-400 text-xs font-bold px-3 py-1 rounded-lg">SYSTEM READY</span>
+                <span id="checkpoint-status" class="text-xs text-zinc-400 font-medium">1 KEY PER 1 DEVICE</span>
             </div>
 
             <!-- กล่องคำคม / Daily Push -->
@@ -79,10 +79,10 @@
                 </div>
             </div>
 
-            <!-- พื้นที่แสดงคอนเทนต์หลัก -->
+            <!-- พื้นที่แสดงปุ่มกดรับคีย์ -->
             <div id="content-box">
-                <button onclick="doNextStep()" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white py-3.5 rounded-2xl font-bold transition duration-300 shadow-lg shadow-pink-500/20 btn-glow cursor-pointer flex items-center justify-center gap-2 text-sm">
-                    <span id="main-btn-text">Continue to Next Step</span>
+                <button onclick="generateKeyForDevice()" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white py-3.5 rounded-2xl font-bold transition duration-300 shadow-lg shadow-pink-500/20 btn-glow cursor-pointer flex items-center justify-center gap-2 text-sm">
+                    <span>Generate Key Now</span>
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                 </button>
             </div>
@@ -127,8 +127,8 @@
 
         <!-- ฟุตเตอร์ลิงก์เสริม -->
         <div class="mt-6 pt-4 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-500">
-            <button onclick="resetHwidModal()" class="hover:text-zinc-300 transition underline decoration-zinc-700 cursor-pointer">Already have a key? Reset HWID</button>
-            <span id="hwid-status-label" class="font-mono text-[10px] text-zinc-600">HWID: Checking...</span>
+            <button onclick="resetHwidWithCooldown()" class="hover:text-zinc-300 transition underline decoration-zinc-700 cursor-pointer">Reset HWID (Cooldown 6 ชม.)</button>
+            <span id="hwid-status-label" class="font-mono text-[10px] text-pink-500">Device ID: Generating...</span>
         </div>
     </div>
 
@@ -137,7 +137,7 @@
         <a href="https://discord.gg/ลิงก์ดิสวัดของมึง" target="_blank" class="text-pink-400 hover:text-pink-300 font-semibold transition underline decoration-pink-500/40">Join our Discord</a>
     </div>
 
-    <!-- Modal: MyKey Dashboard (ประวัติคีย์และเวลาที่เหลือ) -->
+    <!-- Modal: MyKey Dashboard -->
     <div id="dashboard-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-[#111827] border border-zinc-800 w-full max-w-md p-6 rounded-3xl shadow-2xl relative neon-glow">
             <div class="flex items-center justify-between pb-4 border-b border-zinc-800 mb-4">
@@ -155,9 +155,19 @@
         let db;
         let ADMIN_DISCORD_ID = "";
         let currentUser = null;
-        let hwid = new URLSearchParams(window.location.search).get('hwid');
         let currentProvider = 'linkvertise';
-        let genMode = 'auto'; // auto หรือ manual
+        let genMode = 'auto';
+
+        // สร้างหรือดึง HWID ประจำเครื่องจาก LocalStorage (เพื่อให้ 1 เครื่องล็อกตายตัวโดยไม่ต้องรอพารามิเตอร์จากเกม)
+        function getDeviceHwid() {
+            let id = localStorage.getItem('senzy_device_hwid');
+            if (!id) {
+                id = 'DEV-' + Math.random().toString(36).substring(2, 10).toUpperCase() + '-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+                localStorage.setItem('senzy_device_hwid', id);
+            }
+            return id;
+        }
+        let hwid = getDeviceHwid();
 
         function switchProvider() {
             currentProvider = currentProvider === 'linkvertise' ? 'lockr' : 'linkvertise';
@@ -236,7 +246,6 @@
                     const username = metadata.full_name || metadata.name || metadata.custom_name || metadata.preferred_username || currentUser.email?.split('@')[0] || 'User';
                     const avatar = metadata.avatar_url || metadata.picture || metadata.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=ec4899&color=fff&bold=true`;
                     
-                    // ปุ่มมุมขวาบน พร้อมคลิกเปิด MyKey Dashboard และปุ่ม Sign Out
                     authBtnDiv.innerHTML = `
                         <div class="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-2xl text-xs font-semibold text-zinc-200 shadow-lg">
                             <div onclick="openDashboard()" class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition" title="เปิด MyKey Dashboard">
@@ -253,37 +262,80 @@
                     }
                 }
 
-                if (!hwid) {
-                    document.getElementById('checkpoint-badge').innerText = "ERROR";
-                    document.getElementById('checkpoint-status').innerText = "HWID MISSING";
-                    document.getElementById('content-box').innerHTML = `
-                        <div class="bg-pink-500/10 border border-pink-500/20 text-pink-300 p-4 rounded-2xl text-xs leading-relaxed text-center">
-                            กรุณารันสคริปต์จากในเกม Roblox แล้วกดปุ่ม <b>Get Key</b> เพื่อเข้าสู่ระบบผ่านลิงก์ที่ถูกต้องเท่านั้น!
-                        </div>
-                    `;
-                    document.getElementById('hwid-status-label').innerText = "HWID: Not Found";
-                    return;
-                }
+                document.getElementById('hwid-status-label').innerText = "Device: " + hwid.substring(0, 12) + "...";
 
-                document.getElementById('hwid-status-label').innerText = "HWID: " + hwid.substring(0, 8) + "...";
-
+                // เช็คว่าเครื่องนี้มีคีย์ในระบบหรือยัง
                 let { data: existingKey } = await db.from('keys').select('*').eq('hwid', hwid).single();
 
-                if (existingKey && existingKey.key_string && existingKey.key_string !== 'TEMP' && (!existingKey.expires_at || new Date(existingKey.expires_at) > new Date())) {
-                    document.getElementById('checkpoint-badge').innerText = "SUCCESS";
+                if (existingKey && existingKey.key_string && (!existingKey.expires_at || new Date(existingKey.expires_at) > new Date())) {
+                    document.getElementById('checkpoint-badge').innerText = "DEVICE REGISTERED";
                     document.getElementById('checkpoint-status').innerText = "KEY ACTIVE";
                     document.getElementById('content-box').innerHTML = `
                         <div class="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl font-mono text-pink-400 mb-4 select-all break-all text-center text-sm shadow-inner">${existingKey.key_string}</div>
                         <button onclick="navigator.clipboard.writeText('${existingKey.key_string}'); alert('คัดลอกคีย์เรียบร้อย!')" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white py-3.5 rounded-2xl font-bold transition duration-300 shadow-lg shadow-pink-500/20 btn-glow cursor-pointer">Copy Key</button>
                     `;
-                } else {
-                    let step = existingKey ? existingKey.step : 0;
-                    document.getElementById('checkpoint-badge').innerText = `CHECKPOINT ${Math.min(step + 1, 2)} / 2`;
-                    document.getElementById('checkpoint-status').innerText = "IN PROGRESS";
                 }
 
             } catch (err) {
                 console.error("Init Error:", err);
+            }
+        }
+
+        // ฟังก์ชันกด Gen Key ทันทีโดยไม่ต้องรันเกม (1 เครื่อง 1 คีย์)
+        async function generateKeyForDevice() {
+            let { data: existing } = await db.from('keys').select('*').eq('hwid', hwid).single();
+
+            if (existing && existing.key_string && (!existing.expires_at || new Date(existing.expires_at) > new Date())) {
+                alert("เครื่องนี้มีคีย์ใช้งานอยู่แล้ว!");
+                location.reload();
+                return;
+            }
+
+            // เจนคีย์ขึ้นต้นด้วย SKEYX ยาว 15 ตัวอักษร
+            const randomPart = Math.random().toString(36).substring(2, 12).toUpperCase();
+            let newKey = "SKEYX" + randomPart;
+            if (newKey.length > 15) newKey = newKey.substring(0, 15);
+
+            const expireTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 ชั่วโมง หรือปรับตามชอบ
+
+            if (existing) {
+                await db.from('keys').update({
+                    key_string: newKey,
+                    step: 2,
+                    expires_at: expireTime,
+                    updated_at: new Date().toISOString()
+                }).eq('hwid', hwid);
+            } else {
+                await db.from('keys').insert([{
+                    hwid: hwid,
+                    key_string: newKey,
+                    step: 2,
+                    expires_at: expireTime
+                }]);
+            }
+
+            alert(`สร้างคีย์สำเร็จผ่านผู้ให้บริการ (${currentProvider.toUpperCase()})!`);
+            location.reload();
+        }
+
+        // ระบบ Reset HWID ควบคุมด้วย Cooldown 6 ชั่วโมง
+        async function resetHwidWithCooldown() {
+            let lastReset = localStorage.getItem('senzy_last_reset');
+            let now = Date.now();
+            let cooldownTime = 6 * 60 * 60 * 1000; // 6 ชั่วโมง
+
+            if (lastReset && (now - parseInt(lastReset) < cooldownTime)) {
+                let hoursLeft = Math.ceil((cooldownTime - (now - parseInt(lastReset))) / (1000 * 60 * 60));
+                alert(`คุณต้องรออีก ${hoursLeft} ชั่วโมง จึงจะสามารถรีเซ็ต HWID ได้อีกครั้ง!`);
+                return;
+            }
+
+            if (confirm("ต้องการรีเซ็ต HWID ของเครื่องนี้ใช่ไหม? (จำกัดสิทธิ์ 6 ชั่วโมง / ครั้ง)")) {
+                await db.from('keys').delete().eq('hwid', hwid);
+                localStorage.setItem('senzy_last_reset', now.toString());
+                localStorage.removeItem('senzy_device_hwid'); // เปลี่ยน Device ID ใหม่
+                alert("รีเซ็ต HWID สำเร็จ!");
+                location.reload();
             }
         }
 
@@ -297,8 +349,7 @@
             modal.classList.remove('hidden');
             content.innerHTML = `<p class="text-zinc-400">กำลังดึงข้อมูลประวัติคีย์ของคุณ...</p>`;
 
-            // ค้นหาคีย์ที่ผูกกับเครื่องหรือบัญชี
-            let { data: keys, error } = await db.from('keys').select('*').order('id', { ascending: false });
+            let { data: keys } = await db.from('keys').select('*').order('id', { ascending: false });
 
             if (keys && keys.length > 0) {
                 let html = `<div class="space-y-2 max-h-60 overflow-y-auto">`;
@@ -312,7 +363,7 @@
                                 <span class="text-[10px] px-2 py-0.5 rounded ${isExpired ? 'bg-red-500/10 text-red-400' : 'bg-pink-500/10 text-pink-400'}">${isExpired ? 'หมดอายุ' : 'ใช้งานได้'}</span>
                             </div>
                             <div class="text-[11px] text-zinc-400">หมดอายุ: ${expireText}</div>
-                            <div class="text-[10px] text-zinc-600 truncate">HWID: ${k.hwid || 'Custom Key'}</div>
+                            <div class="text-[10px] text-zinc-600 truncate">Device ID: ${k.hwid}</div>
                         </div>
                     `;
                 });
@@ -327,33 +378,6 @@
             document.getElementById('dashboard-modal').classList.add('hidden');
         }
 
-        async function doNextStep() {
-            if (!hwid) return alert("ไม่พบ HWID!");
-            let { data: existing } = await db.from('keys').select('*').eq('hwid', hwid).single();
-
-            let nextStep = existing ? (existing.step || 0) + 1 : 1;
-
-            if (!existing) {
-                await db.from('keys').insert([{ hwid: hwid, step: 1, key_string: 'TEMP' }]);
-            } else {
-                if (nextStep >= 2) {
-                    const randomKey = 'SENZ-' + Math.random().toString(36).substring(2, 8).toUpperCase() + '-' + Math.random().toString(36).substring(2, 8).toUpperCase();
-                    const expireTime = new Date(Date.now() + 12 * 60 * 60 * 1000);
-
-                    await db.from('keys').update({
-                        step: 2,
-                        key_string: randomKey,
-                        expires_at: expireTime.toISOString()
-                    }).eq('hwid', hwid);
-                } else {
-                    await db.from('keys').update({ step: nextStep }).eq('hwid', hwid);
-                }
-            }
-
-            alert(`กำลังพาส่งไปยังผู้ให้บริการ (${currentProvider.toUpperCase()})... ผ่านสำเร็จ!`);
-            location.reload();
-        }
-
         async function loginWithDiscord() {
             const { error } = await db.auth.signInWithOAuth({
                 provider: 'discord',
@@ -365,13 +389,6 @@
         async function logoutUser() {
             await db.auth.signOut();
             location.href = window.location.origin;
-        }
-
-        function resetHwidModal() {
-            const inputHwid = prompt("กรุณากรอก HWID ที่คุณต้องการรีเซ็ต:");
-            if(inputHwid) {
-                alert("ส่งคำขอรีเซ็ต HWID เรียบร้อย!");
-            }
         }
 
         async function loadAdminKeys() {
@@ -395,7 +412,6 @@
             const durationType = document.getElementById('key-duration-select').value;
 
             if(genMode === 'auto') {
-                // เจนให้ขึ้นต้นด้วย SKEYX รวม 15 ตัวอักษร
                 const randomPart = Math.random().toString(36).substring(2, 12).toUpperCase();
                 finalKey = "SKEYX" + randomPart;
                 if(finalKey.length > 15) finalKey = finalKey.substring(0, 15);
