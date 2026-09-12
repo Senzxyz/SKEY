@@ -336,6 +336,7 @@
                 let updatePayload = {
                     key_string: newKey,
                     step: 3,
+                    is_permanent: false,
                     expires_at: expireTime,
                     discord_id: discordId,
                     updated_at: new Date().toISOString()
@@ -346,6 +347,7 @@
                     hwid: hwid,
                     key_string: newKey,
                     step: 3,
+                    is_permanent: false,
                     expires_at: expireTime,
                     discord_id: discordId
                 };
@@ -498,13 +500,17 @@
             }
 
             let expireTime = null;
+            let isPerm = false;
             if(durationType === '7days') {
                 expireTime = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+            } else if(durationType === 'permanent') {
+                isPerm = true;
             }
 
             let insertPayload = {
                 key_string: finalKey,
                 step: 3,
+                is_permanent: isPerm,
                 expires_at: expireTime
             };
 
