@@ -55,12 +55,6 @@
         <!-- Global error banner -->
         <div id="error-banner" class="hidden mb-4 bg-red-500/10 border border-red-500/30 text-red-300 text-xs font-semibold px-4 py-3 rounded-2xl"></div>
 
-        <!-- Admin / User Tabs -->
-        <div id="admin-tabs-container" class="hidden flex gap-2 mb-5 pb-3 border-b border-zinc-800/80">
-            <button onclick="switchTab('key-system')" id="tab-key-btn" class="flex-1 bg-pink-600 text-white text-xs font-bold py-2 rounded-xl transition cursor-pointer">Key System</button>
-            <button onclick="switchTab('admin-panel')" id="tab-admin-btn" class="flex-1 bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold py-2 rounded-xl transition cursor-pointer">Admin Panel</button>
-        </div>
-
         <!-- Key System View -->
         <div id="view-key-system">
             <div class="flex items-center gap-2 mb-6">
@@ -80,153 +74,6 @@
                     <svg class="w-4 h-4 spin" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                     <span>Loading your status...</span>
                 </div>
-            </div>
-        </div>
-
-        <!-- Admin Panel View -->
-        <div id="view-admin-panel" class="hidden flex-col md:flex-row gap-5">
-            <!-- Sidebar -->
-            <div class="w-full md:w-44 shrink-0 flex md:flex-col gap-1 overflow-x-auto md:overflow-visible pb-2 md:pb-0">
-                <div class="hidden md:block text-[10px] uppercase tracking-widest text-zinc-600 font-bold px-2 pt-1 pb-1.5">Manage</div>
-                <button onclick="switchAdminSection('keys')" data-admin-nav="keys" class="admin-nav-btn shrink-0 text-left px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer">Keys</button>
-                <button onclick="switchAdminSection('bulk')" data-admin-nav="bulk" class="admin-nav-btn shrink-0 text-left px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer">Bulk keys</button>
-                <button onclick="switchAdminSection('customers')" data-admin-nav="customers" class="admin-nav-btn shrink-0 text-left px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer">Customers</button>
-                <button onclick="switchAdminSection('scripts')" data-admin-nav="scripts" class="admin-nav-btn shrink-0 text-left px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer">Scripts</button>
-                <button onclick="switchAdminSection('announcement')" data-admin-nav="announcement" class="admin-nav-btn shrink-0 text-left px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer">Announcement</button>
-
-                <div class="hidden md:block text-[10px] uppercase tracking-widest text-zinc-600 font-bold px-2 pt-3 pb-1.5">Insights</div>
-                <button onclick="switchAdminSection('logs')" data-admin-nav="logs" class="admin-nav-btn shrink-0 text-left px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer">Logs</button>
-                <button onclick="switchAdminSection('analytics')" data-admin-nav="analytics" class="admin-nav-btn shrink-0 text-left px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer">Analytics</button>
-
-                <div class="hidden md:block text-[10px] uppercase tracking-widest text-zinc-600 font-bold px-2 pt-3 pb-1.5">System</div>
-                <button onclick="switchAdminSection('settings')" data-admin-nav="settings" class="admin-nav-btn shrink-0 text-left px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer">Settings</button>
-            </div>
-
-            <!-- Content -->
-            <div class="flex-1 min-w-0">
-                <div id="admin-section-keys" class="admin-section hidden">
-                    <div class="mb-4">
-                        <span class="text-xs text-pink-400 font-bold block mb-2">Create Custom Key (Starts with SKEYX - 15 Chars)</span>
-
-                        <div class="flex gap-2 mb-3">
-                            <button onclick="setGenMode('auto')" id="mode-auto-btn" class="flex-1 bg-pink-600 text-white text-xs font-semibold py-1.5 rounded-xl cursor-pointer">Auto Generate</button>
-                            <button onclick="setGenMode('manual')" id="mode-manual-btn" class="flex-1 bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-semibold py-1.5 rounded-xl cursor-pointer">Manual Input</button>
-                        </div>
-
-                        <div id="manual-input-box" class="hidden mb-2">
-                            <input type="text" id="custom-key-input" placeholder="Suffix after SKEYX (letters/numbers only)" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-pink-500">
-                        </div>
-
-                        <div class="flex gap-2 mb-3">
-                            <div class="flex-1">
-                                <label class="text-[11px] text-zinc-400 block mb-1">Key Duration:</label>
-                                <select id="key-duration-select" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-pink-500">
-                                    <option value="12hours">12 Hours</option>
-                                    <option value="7days">7 Days</option>
-                                    <option value="permanent">Permanent</option>
-                                </select>
-                            </div>
-                            <div class="w-24">
-                                <label class="text-[11px] text-zinc-400 block mb-1">Devices:</label>
-                                <input type="number" id="key-max-devices-input" min="1" value="1" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-pink-500">
-                            </div>
-                        </div>
-
-                        <button onclick="createCustomKey()" id="create-key-btn" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer text-white shadow-md">Create Key</button>
-                    </div>
-
-                    <!-- Stats -->
-                    <div id="admin-stats-bar" class="grid grid-cols-3 gap-2 mb-3">
-                        <div class="bg-zinc-950/60 border border-zinc-800/60 p-2.5 rounded-xl text-center">
-                            <div id="stat-total" class="text-sm font-extrabold text-white">-</div>
-                            <div class="text-[9px] uppercase tracking-wider text-zinc-500">Total</div>
-                        </div>
-                        <div class="bg-zinc-950/60 border border-zinc-800/60 p-2.5 rounded-xl text-center">
-                            <div id="stat-active" class="text-sm font-extrabold text-pink-400">-</div>
-                            <div class="text-[9px] uppercase tracking-wider text-zinc-500">Active</div>
-                        </div>
-                        <div class="bg-zinc-950/60 border border-zinc-800/60 p-2.5 rounded-xl text-center">
-                            <div id="stat-expired" class="text-sm font-extrabold text-zinc-500">-</div>
-                            <div class="text-[9px] uppercase tracking-wider text-zinc-500">Expired</div>
-                        </div>
-                    </div>
-
-                    <input type="text" id="admin-key-search" oninput="renderAdminKeysTable()" placeholder="Search key string or owner..." class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white mb-3 focus:outline-none focus:border-pink-500">
-
-                    <div class="max-h-64 overflow-y-auto border border-zinc-800 rounded-xl bg-zinc-950/40 mb-3">
-                        <table class="w-full text-left">
-                            <tr class="border-b border-zinc-800 text-xs text-zinc-500 bg-zinc-900/80 sticky top-0">
-                                <th class="p-2.5">Key String</th>
-                                <th class="p-2.5">Status</th>
-                                <th class="p-2.5">Devices</th>
-                                <th class="p-2.5 text-right">Actions</th>
-                            </tr>
-                            <tbody id="admin-keys-table-body"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div id="admin-section-scripts" class="admin-section hidden">
-                    <div class="flex items-center justify-between mb-4">
-                        <span class="text-xs text-pink-400 font-bold">Scripts</span>
-                        <button onclick="openScriptForm()" class="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition cursor-pointer shadow-md">+ New script</button>
-                    </div>
-
-                    <div id="script-form-box" class="hidden bg-zinc-950/60 border border-zinc-800 rounded-2xl p-4 mb-4">
-                        <input type="hidden" id="script-form-id">
-                        <div class="grid grid-cols-2 gap-2 mb-2">
-                            <div>
-                                <label class="text-[11px] text-zinc-400 block mb-1">Name</label>
-                                <input type="text" id="script-form-name" placeholder="My Script" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-pink-500">
-                            </div>
-                            <div>
-                                <label class="text-[11px] text-zinc-400 block mb-1">Slug (used in loader URL)</label>
-                                <input type="text" id="script-form-slug" placeholder="my-script" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-pink-500">
-                            </div>
-                        </div>
-                        <label class="text-[11px] text-zinc-400 block mb-1">GitHub raw URL</label>
-                        <input type="text" id="script-form-url" placeholder="https://raw.githubusercontent.com/you/repo/main/script.lua" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white mb-2 focus:outline-none focus:border-pink-500">
-                        <label class="flex items-center gap-2 text-xs text-zinc-300 mb-3 cursor-pointer">
-                            <input type="checkbox" id="script-form-active" checked class="accent-pink-500">
-                            Active
-                        </label>
-                        <div class="flex gap-2">
-                            <button onclick="closeScriptForm()" class="flex-1 bg-zinc-800 hover:bg-zinc-700 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer text-zinc-200">Cancel</button>
-                            <button onclick="saveScript()" id="script-form-save-btn" class="flex-1 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer text-white shadow-md">Save</button>
-                        </div>
-                    </div>
-
-                    <div class="max-h-96 overflow-y-auto border border-zinc-800 rounded-xl bg-zinc-950/40">
-                        <table class="w-full text-left">
-                            <tr class="border-b border-zinc-800 text-xs text-zinc-500 bg-zinc-900/80 sticky top-0">
-                                <th class="p-2.5">Name</th>
-                                <th class="p-2.5">Slug</th>
-                                <th class="p-2.5">Status</th>
-                                <th class="p-2.5 text-right">Actions</th>
-                            </tr>
-                            <tbody id="admin-scripts-table-body"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div id="admin-section-bulk" class="admin-section hidden"></div>
-                <div id="admin-section-customers" class="admin-section hidden"></div>
-                <div id="admin-section-announcement" class="admin-section hidden"></div>
-                <div id="admin-section-logs" class="admin-section hidden"></div>
-                <div id="admin-section-analytics" class="admin-section hidden"></div>
-                <div id="admin-section-settings" class="admin-section hidden"></div>
-            </div>
-        </div>
-
-        <!-- Device list modal (admin: view / force-unbind devices on a key) -->
-        <div id="devices-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-            <div class="bg-[#111827] border border-zinc-800 w-full max-w-sm p-6 rounded-3xl shadow-2xl relative neon-glow">
-                <div class="flex items-center justify-between pb-4 border-b border-zinc-800 mb-4">
-                    <h3 class="text-base font-extrabold text-pink-400">Bound Devices</h3>
-                    <button onclick="closeDevicesModal()" class="text-zinc-400 hover:text-white font-bold cursor-pointer">✕</button>
-                </div>
-                <div id="devices-modal-content" class="text-xs text-zinc-300 space-y-2 max-h-60 overflow-y-auto"></div>
-                <button onclick="closeDevicesModal()" class="mt-6 w-full bg-zinc-800 hover:bg-zinc-700 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer text-zinc-200">Close</button>
             </div>
         </div>
 
@@ -468,82 +315,6 @@
         }
 
         // ============================================================
-        // UI mode toggles
-        // ============================================================
-        function setGenMode(mode) {
-            genMode = mode;
-            const autoBtn = document.getElementById('mode-auto-btn');
-            const manualBtn = document.getElementById('mode-manual-btn');
-            const inputBox = document.getElementById('manual-input-box');
-
-            if (mode === 'auto') {
-                autoBtn.className = "flex-1 bg-pink-600 text-white text-xs font-semibold py-1.5 rounded-xl cursor-pointer";
-                manualBtn.className = "flex-1 bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-semibold py-1.5 rounded-xl cursor-pointer";
-                inputBox.classList.add('hidden');
-            } else {
-                manualBtn.className = "flex-1 bg-pink-600 text-white text-xs font-semibold py-1.5 rounded-xl cursor-pointer";
-                autoBtn.className = "flex-1 bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-semibold py-1.5 rounded-xl cursor-pointer";
-                inputBox.classList.remove('hidden');
-            }
-        }
-
-        const ADMIN_SECTIONS = ['keys', 'bulk', 'customers', 'scripts', 'announcement', 'logs', 'analytics', 'settings'];
-        const ADMIN_SECTION_STUBS = {
-            bulk: 'Bulk key generation — coming soon.',
-            customers: 'Customer directory — coming soon.',
-            announcement: 'Site-wide announcements — coming soon.',
-            logs: 'Raw event logs — coming soon.',
-            analytics: 'Usage analytics — coming soon.',
-            settings: 'Site settings — coming soon.'
-        };
-
-        function switchAdminSection(section) {
-            ADMIN_SECTIONS.forEach(s => {
-                document.getElementById(`admin-section-${s}`).classList.toggle('hidden', s !== section);
-            });
-            document.querySelectorAll('.admin-nav-btn').forEach(btn => {
-                const isActive = btn.dataset.adminNav === section;
-                btn.className = `admin-nav-btn shrink-0 text-left px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${isActive ? 'bg-pink-600 text-white' : 'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white'}`;
-            });
-
-            const stubBox = document.getElementById(`admin-section-${section}`);
-            if (ADMIN_SECTION_STUBS[section] && !stubBox.dataset.rendered) {
-                stubBox.innerHTML = `<div class="text-xs text-zinc-500 bg-zinc-950/40 border border-zinc-800 rounded-xl p-6 text-center">${ADMIN_SECTION_STUBS[section]}</div>`;
-                stubBox.dataset.rendered = '1';
-            }
-
-            if (section === 'keys') loadAdminKeys();
-            if (section === 'scripts') loadAdminScripts();
-        }
-
-        function switchTab(tab) {
-            const keyView = document.getElementById('view-key-system');
-            const adminView = document.getElementById('view-admin-panel');
-            const keyBtn = document.getElementById('tab-key-btn');
-            const adminBtn = document.getElementById('tab-admin-btn');
-            const mainCard = document.getElementById('main-card');
-
-            if (tab === 'key-system') {
-                keyView.classList.remove('hidden');
-                adminView.classList.add('hidden');
-                adminView.classList.remove('flex');
-                keyBtn.className = "flex-1 bg-pink-600 text-white text-xs font-bold py-2 rounded-xl transition cursor-pointer";
-                adminBtn.className = "flex-1 bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold py-2 rounded-xl transition cursor-pointer";
-                mainCard.classList.remove('max-w-5xl');
-                mainCard.classList.add('max-w-lg');
-            } else {
-                adminView.classList.remove('hidden');
-                adminView.classList.add('flex');
-                keyView.classList.add('hidden');
-                adminBtn.className = "flex-1 bg-pink-600 text-white text-xs font-bold py-2 rounded-xl transition cursor-pointer";
-                keyBtn.className = "flex-1 bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold py-2 rounded-xl transition cursor-pointer";
-                mainCard.classList.remove('max-w-lg');
-                mainCard.classList.add('max-w-5xl');
-                switchAdminSection('keys');
-            }
-        }
-
-        // ============================================================
         // App init
         // ============================================================
         async function initApp() {
@@ -585,10 +356,6 @@
                         </div>
                     `;
 
-                    const discordId = getDiscordId(currentUser);
-                    if (ADMIN_DISCORD_ID && String(discordId) === String(ADMIN_DISCORD_ID)) {
-                        document.getElementById('admin-tabs-container').classList.remove('hidden');
-                    }
                 }
 
                 document.getElementById('hwid-status-label').innerText = "Device: " + hwid.substring(0, 12) + "...";
@@ -838,7 +605,7 @@
             document.getElementById('checkpoint-status').innerText = "KEY ACTIVE";
 
             const safeKey = escapeHtml(keyString);
-            const loaderSnippet = `loadstring(game:HttpGet("${window.location.origin}/api/loader?key=${keyString}&script=SLUG&hwid=${hwid}"))()`;
+            const loaderSnippet = `getgenv().SenzyKey = "${keyString}"\ngetgenv().SenzyHWID = "${hwid}"\nloadstring(game:HttpGet("https://raw.githubusercontent.com/senzxyz2xxx/Senzy/refs/heads/main/Loader.lua"))()`;
             const contentBox = document.getElementById('content-box');
             contentBox.innerHTML = `
                 <div class="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl font-mono text-pink-400 mb-3 select-all break-all text-center text-sm shadow-inner">${safeKey}</div>
@@ -846,7 +613,7 @@
                 <div class="text-center text-xs text-zinc-400 bg-zinc-900/50 border border-zinc-800 py-2.5 rounded-xl mb-3">
                     ⏳ Expires in: <span id="countdown-timer" class="font-mono text-pink-400 font-bold">Calculating...</span>
                 </div>
-                <div class="text-[10px] text-zinc-500 mb-1.5">Your loader script (swap SLUG for the script you want — this hwid is what's bound to your key, don't hardcode anything else):</div>
+                <div class="text-[10px] text-zinc-500 mb-1.5">Your loader script (paste as-is — you'll pick which script to run from the in-game menu):</div>
                 <div class="bg-zinc-950 border border-zinc-800 p-3 rounded-xl font-mono text-[10px] text-zinc-300 mb-2 select-all break-all">${escapeHtml(loaderSnippet)}</div>
                 <button id="copy-loader-btn" class="w-full bg-zinc-800 hover:bg-zinc-700 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer text-zinc-200">Copy Loader Script</button>
             `;
@@ -899,8 +666,6 @@
         // ============================================================
         function openResetHwidView() {
             document.getElementById('view-key-system').classList.add('hidden');
-            document.getElementById('view-admin-panel').classList.add('hidden');
-            document.getElementById('admin-tabs-container').classList.add('hidden');
             document.getElementById('main-footer').classList.add('hidden');
             document.getElementById('view-reset-hwid').classList.remove('hidden');
         }
@@ -909,10 +674,6 @@
             document.getElementById('view-reset-hwid').classList.add('hidden');
             document.getElementById('main-footer').classList.remove('hidden');
             document.getElementById('view-key-system').classList.remove('hidden');
-            const discordId = getDiscordId(currentUser);
-            if (ADMIN_DISCORD_ID && currentUser && String(discordId) === String(ADMIN_DISCORD_ID)) {
-                document.getElementById('admin-tabs-container').classList.remove('hidden');
-            }
         }
 
         async function doResetHwid() {
@@ -1012,297 +773,6 @@
         async function logoutUser() {
             await db.auth.signOut();
             location.href = window.location.origin;
-        }
-
-        // ============================================================
-        // Admin panel
-        // Note: the UI only *hides* this tab from non-admins — the real
-        // enforcement now happens in Supabase RLS policies (see the SQL
-        // shared alongside this file). Without that, anyone could open
-        // devtools and call these functions directly.
-        // ============================================================
-        let adminKeysCache = [];
-        let adminDeviceCounts = {}; // key_id -> count
-
-        // ============================================================
-        // Scripts admin section — talks to /api/admin/scripts (service role
-        // on the server) since the scripts table has no anon write policy
-        // on purpose (see sql/scripts-loader.sql).
-        // ============================================================
-        let adminScriptsCache = [];
-
-        async function adminScriptsRequest(method, body) {
-            const { data: { session } } = await db.auth.getSession();
-            if (!session) {
-                showModal('Error', 'Your admin session expired. Please log in again.');
-                return null;
-            }
-            const res = await fetch('/api/admin/scripts', {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`
-                },
-                body: body ? JSON.stringify(body) : undefined
-            });
-            let data = null;
-            try { data = await res.json(); } catch {}
-            if (!res.ok) {
-                showModal('Error', data?.error || `Request failed (${res.status}).`);
-                return null;
-            }
-            return data;
-        }
-
-        async function loadAdminScripts() {
-            const data = await adminScriptsRequest('GET');
-            adminScriptsCache = data?.scripts || [];
-            renderAdminScriptsTable();
-        }
-
-        function renderAdminScriptsTable() {
-            const tbody = document.getElementById('admin-scripts-table-body');
-            if (adminScriptsCache.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-zinc-500 text-xs">No scripts yet</td></tr>`;
-                return;
-            }
-            tbody.innerHTML = adminScriptsCache.map(s => `
-                <tr class="border-b border-zinc-800/80 text-xs hover:bg-zinc-900/40 transition">
-                    <td class="p-2.5 text-zinc-200 font-semibold">${escapeHtml(s.name)}</td>
-                    <td class="p-2.5 font-mono text-pink-400">${escapeHtml(s.slug)}</td>
-                    <td class="p-2.5">
-                        <span class="text-[10px] px-2 py-0.5 rounded ${s.is_active ? 'bg-pink-500/10 text-pink-400 border border-pink-500/20' : 'bg-zinc-800 text-zinc-500 border border-zinc-700'}">
-                            ${s.is_active ? 'Active' : 'Disabled'}
-                        </span>
-                    </td>
-                    <td class="p-2.5 text-right flex items-center justify-end gap-1.5">
-                        <button onclick="editScript(${s.id})" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer">Edit</button>
-                        <button onclick="deleteScript(${s.id})" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer">Delete</button>
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        function openScriptForm(script = null) {
-            document.getElementById('script-form-box').classList.remove('hidden');
-            document.getElementById('script-form-id').value = script?.id || '';
-            document.getElementById('script-form-name').value = script?.name || '';
-            document.getElementById('script-form-slug').value = script?.slug || '';
-            document.getElementById('script-form-url').value = script?.github_raw_url || '';
-            document.getElementById('script-form-active').checked = script ? script.is_active : true;
-        }
-
-        function closeScriptForm() {
-            document.getElementById('script-form-box').classList.add('hidden');
-        }
-
-        function editScript(id) {
-            const script = adminScriptsCache.find(s => s.id === id);
-            if (script) openScriptForm(script);
-        }
-
-        async function saveScript() {
-            const id = document.getElementById('script-form-id').value || null;
-            const name = document.getElementById('script-form-name').value.trim();
-            const slug = document.getElementById('script-form-slug').value.trim().toLowerCase();
-            const github_raw_url = document.getElementById('script-form-url').value.trim();
-            const is_active = document.getElementById('script-form-active').checked;
-
-            if (!name || !slug || !github_raw_url) {
-                showModal('Warning', 'Name, slug, and GitHub raw URL are all required.');
-                return;
-            }
-
-            const btn = document.getElementById('script-form-save-btn');
-            await withBusyGuard(btn, async () => {
-                const method = id ? 'PUT' : 'POST';
-                const data = await adminScriptsRequest(method, { id, name, slug, github_raw_url, is_active });
-                if (data) {
-                    closeScriptForm();
-                    await loadAdminScripts();
-                }
-            })();
-        }
-
-        function deleteScript(id) {
-            showConfirm('Delete Script', 'Delete this script? Any loader links using its slug will stop working immediately.', async () => {
-                const data = await adminScriptsRequest('DELETE', { id });
-                if (data) await loadAdminScripts();
-            }, null, 'Delete');
-        }
-
-        async function loadAdminKeys() {
-            let { data: keys, error } = await db.from('keys').select('*').order('id', { ascending: false });
-            if (error) {
-                console.error("Load Keys Error:", error.message);
-                document.getElementById('admin-keys-table-body').innerHTML =
-                    `<tr><td colspan="4" class="p-4 text-center text-red-400 text-xs">Couldn't load keys (check RLS policy / admin membership).</td></tr>`;
-                return;
-            }
-            adminKeysCache = keys || [];
-
-            // Device counts (key_devices policy lets admins read every row).
-            let { data: devices } = await db.from('key_devices').select('key_id');
-            adminDeviceCounts = {};
-            (devices || []).forEach(d => { adminDeviceCounts[d.key_id] = (adminDeviceCounts[d.key_id] || 0) + 1; });
-
-            const total = adminKeysCache.length;
-            const expiredCount = adminKeysCache.filter(k => k.expires_at && new Date(k.expires_at) < new Date()).length;
-            document.getElementById('stat-total').innerText = total;
-            document.getElementById('stat-active').innerText = total - expiredCount;
-            document.getElementById('stat-expired').innerText = expiredCount;
-
-            renderAdminKeysTable();
-        }
-
-        function renderAdminKeysTable() {
-            const query = (document.getElementById('admin-key-search')?.value || '').trim().toLowerCase();
-            const tbody = document.getElementById('admin-keys-table-body');
-            let list = adminKeysCache;
-            if (query) {
-                list = list.filter(k =>
-                    (k.key_string || '').toLowerCase().includes(query) ||
-                    (k.owner_username || '').toLowerCase().includes(query) ||
-                    (k.discord_id || '').toLowerCase().includes(query)
-                );
-            }
-
-            let rows = '';
-            if (list.length > 0) {
-                list.forEach(k => {
-                    let isExpired = k.expires_at && new Date(k.expires_at) < new Date();
-                    let deviceCount = adminDeviceCounts[k.id] || 0;
-                    let maxDevices = k.max_devices || 1;
-                    rows += `<tr class="border-b border-zinc-800/80 text-xs hover:bg-zinc-900/40 transition">
-                        <td class="p-2.5 font-mono text-pink-400 font-bold">${escapeHtml(k.key_string)}</td>
-                        <td class="p-2.5">
-                            <span class="text-[10px] px-2 py-0.5 rounded ${isExpired ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-pink-500/10 text-pink-400 border border-pink-500/20'}">
-                                ${isExpired ? 'Expired' : 'Active'}
-                            </span>
-                        </td>
-                        <td class="p-2.5">
-                            <button onclick="openDevicesModal('${k.id}')" class="text-[10px] text-zinc-300 hover:text-pink-400 underline decoration-zinc-700 cursor-pointer">${deviceCount}/${maxDevices}</button>
-                        </td>
-                        <td class="p-2.5 text-right flex items-center justify-end gap-1.5">
-                            <button onclick="copyKeyValue('${escapeHtml(k.key_string)}')" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer">Copy</button>
-                            <button onclick="deleteKey('${k.id}')" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer">Delete</button>
-                        </td>
-                    </tr>`;
-                });
-            } else {
-                rows = `<tr><td colspan="4" class="p-4 text-center text-zinc-500 text-xs">No keys match</td></tr>`;
-            }
-            tbody.innerHTML = rows;
-        }
-
-        function copyKeyValue(key) {
-            navigator.clipboard.writeText(key);
-            showModal('Success', 'Key copied to clipboard!');
-        }
-
-        // ------------------------------------------------------------
-        // Devices modal — view bound hwids for a key, force-unbind one
-        // ------------------------------------------------------------
-        async function openDevicesModal(keyId) {
-            const modal = document.getElementById('devices-modal');
-            const content = document.getElementById('devices-modal-content');
-            modal.classList.remove('hidden');
-            content.innerHTML = `<p class="text-zinc-500">Loading devices...</p>`;
-
-            let { data: devices, error } = await db.from('key_devices').select('*').eq('key_id', keyId).order('created_at', { ascending: false });
-            if (error) {
-                content.innerHTML = `<p class="text-red-400">Couldn't load devices.</p>`;
-                return;
-            }
-            if (!devices || devices.length === 0) {
-                content.innerHTML = `<p class="text-zinc-500">No devices bound to this key.</p>`;
-                return;
-            }
-
-            content.innerHTML = devices.map(d => `
-                <div class="flex items-center justify-between bg-zinc-950 border border-zinc-800 p-2.5 rounded-xl">
-                    <span class="font-mono text-[10px] text-zinc-300 truncate mr-2">${escapeHtml(d.hwid)}</span>
-                    <button onclick="unbindDevice(${d.id}, '${keyId}')" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-2 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer shrink-0">Unbind</button>
-                </div>
-            `).join('');
-        }
-
-        function closeDevicesModal() {
-            document.getElementById('devices-modal').classList.add('hidden');
-        }
-
-        function unbindDevice(deviceRowId, keyId) {
-            showConfirm("Unbind Device", "Force-remove this device from the key? The user will need to re-activate on it.", async () => {
-                const { error } = await db.from('key_devices').delete().eq('id', deviceRowId);
-                if (error) {
-                    showModal("Error", error.message);
-                    return;
-                }
-                await loadAdminKeys();
-                openDevicesModal(keyId);
-            }, null, "Unbind");
-        }
-
-        async function createCustomKey() {
-            const btn = document.getElementById('create-key-btn');
-            await withBusyGuard(btn, async () => {
-                let finalKey = "";
-                const durationType = document.getElementById('key-duration-select').value;
-
-                if (genMode === 'auto') {
-                    const randomPart = Math.random().toString(36).substring(2, 12).toUpperCase();
-                    finalKey = ("SKEYX" + randomPart).substring(0, 15);
-                } else {
-                    const rawInput = document.getElementById('custom-key-input').value.trim();
-                    // Only allow letters/numbers — the key gets rendered back into
-                    // the page later, so anything else is a potential XSS payload.
-                    const customVal = rawInput.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-                    if (!customVal) {
-                        showModal("Warning", "Please enter a valid key suffix (letters and numbers only)!");
-                        return;
-                    }
-                    finalKey = ("SKEYX" + customVal).substring(0, 15);
-                }
-
-                let expireTime = null;
-                let isPerm = false;
-                if (durationType === '12hours') {
-                    expireTime = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
-                } else if (durationType === '7days') {
-                    expireTime = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-                } else if (durationType === 'permanent') {
-                    isPerm = true;
-                }
-
-                const maxDevices = Math.max(1, parseInt(document.getElementById('key-max-devices-input').value, 10) || 1);
-
-                let { error } = await db.from('keys').insert([{
-                    key_string: finalKey,
-                    step: TOTAL_STEPS,
-                    is_permanent: isPerm,
-                    expires_at: expireTime,
-                    max_devices: maxDevices
-                }]);
-
-                if (error) {
-                    showModal("Error", error.message);
-                } else {
-                    showModal("Success", "Key created successfully: " + finalKey);
-                    document.getElementById('custom-key-input').value = "";
-                    loadAdminKeys();
-                }
-            })();
-        }
-
-        function deleteKey(id) {
-            showConfirm("Delete Key", "Are you sure you want to delete this key? This can't be undone.", async () => {
-                let { error } = await db.from('keys').delete().eq('id', id);
-                if (error) {
-                    showModal("Error", error.message);
-                } else {
-                    loadAdminKeys();
-                }
-            }, null, "Delete");
         }
 
         initApp();

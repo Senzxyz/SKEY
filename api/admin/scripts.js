@@ -56,21 +56,21 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      const { name, slug, github_raw_url, is_active } = req.body || {};
+      const { name, slug, github_raw_url, is_active, requires_key } = req.body || {};
       if (!name || !slug || !github_raw_url) {
         return res.status(400).json({ error: 'name, slug, and github_raw_url are required.' });
       }
-      const { data, error } = await supabase.from('scripts').insert([{ name, slug, github_raw_url, is_active: !!is_active }]).select().single();
+      const { data, error } = await supabase.from('scripts').insert([{ name, slug, github_raw_url, is_active: !!is_active, requires_key: requires_key !== false }]).select().single();
       if (error) return res.status(400).json({ error: error.message }); // e.g. duplicate slug
       return res.status(200).json({ script: data });
     }
 
     if (req.method === 'PUT') {
-      const { id, name, slug, github_raw_url, is_active } = req.body || {};
+      const { id, name, slug, github_raw_url, is_active, requires_key } = req.body || {};
       if (!id) return res.status(400).json({ error: 'id is required.' });
       const { data, error } = await supabase
         .from('scripts')
-        .update({ name, slug, github_raw_url, is_active: !!is_active, updated_at: new Date().toISOString() })
+        .update({ name, slug, github_raw_url, is_active: !!is_active, requires_key: requires_key !== false, updated_at: new Date().toISOString() })
         .eq('id', id)
         .select()
         .single();
