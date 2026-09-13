@@ -84,7 +84,7 @@
         </div>
 
         <!-- Admin Panel View -->
-        <div id="view-admin-panel" class="hidden md:flex gap-5">
+        <div id="view-admin-panel" class="hidden flex-col md:flex-row gap-5">
             <!-- Sidebar -->
             <div class="w-full md:w-44 shrink-0 flex md:flex-col gap-1 overflow-x-auto md:overflow-visible pb-2 md:pb-0">
                 <div class="hidden md:block text-[10px] uppercase tracking-widest text-zinc-600 font-bold px-2 pt-1 pb-1.5">Manage</div>
@@ -526,12 +526,14 @@
             if (tab === 'key-system') {
                 keyView.classList.remove('hidden');
                 adminView.classList.add('hidden');
+                adminView.classList.remove('flex');
                 keyBtn.className = "flex-1 bg-pink-600 text-white text-xs font-bold py-2 rounded-xl transition cursor-pointer";
                 adminBtn.className = "flex-1 bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold py-2 rounded-xl transition cursor-pointer";
                 mainCard.classList.remove('max-w-5xl');
                 mainCard.classList.add('max-w-lg');
             } else {
                 adminView.classList.remove('hidden');
+                adminView.classList.add('flex');
                 keyView.classList.add('hidden');
                 adminBtn.className = "flex-1 bg-pink-600 text-white text-xs font-bold py-2 rounded-xl transition cursor-pointer";
                 keyBtn.className = "flex-1 bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold py-2 rounded-xl transition cursor-pointer";
