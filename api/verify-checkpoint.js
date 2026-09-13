@@ -44,7 +44,7 @@ async function verifyWithLinkvertise(token) {
   // const data = await resp.json();
   // return data.success === true;
 
-  return true; // placeholder — DO NOT ship this as-is, see TODO above
+  throw new Error('NOT_CONFIGURED'); // remove this line once the real fetch() above is live
 }
 
 export default async function handler(req, res) {
@@ -72,7 +72,21 @@ export default async function handler(req, res) {
     }
 
     // 2. Ask Linkvertise if the token is real (see TODO above).
-    const isValid = await verifyWithLinkvertise(token);
+    let isValid;
+    try {
+      isValid = await verifyWithLinkvertise(token);
+    } catch (err) {
+      if (err.message === 'NOT_CONFIGURED') {
+        // Real Linkvertise call isn't wired in yet. Tell the client "I don't
+        // know" (501) rather than "invalid" (200/ok:false) — the client
+        // treats a non-2xx as "fall back to the old heuristic" so the live
+        // flow keeps working while this is still a stub. Once the real
+        // fetch() is live, this whole catch block goes away.
+        return res.status(501).json({ ok: false, error: 'Anti-bypass verification not configured yet.' });
+      }
+      throw err;
+    }
+
     if (!isValid) {
       return res.status(200).json({ ok: false, error: 'Gateway completion could not be verified.' });
     }
@@ -94,8 +108,4 @@ export default async function handler(req, res) {
     console.error('verify-checkpoint error:', err);
     return res.status(500).json({ ok: false, error: 'Internal verification error.' });
   }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> f48d2f2488e062ddc0f0d5660eecbd83a61f95da

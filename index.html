@@ -730,17 +730,25 @@
             document.getElementById('checkpoint-status').innerText = "KEY ACTIVE";
 
             const safeKey = escapeHtml(keyString);
+            const loaderSnippet = `loadstring(game:HttpGet("${window.location.origin}/api/loader?key=${keyString}&script=SLUG&hwid=${hwid}"))()`;
             const contentBox = document.getElementById('content-box');
             contentBox.innerHTML = `
                 <div class="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl font-mono text-pink-400 mb-3 select-all break-all text-center text-sm shadow-inner">${safeKey}</div>
                 <button id="copy-key-btn" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white py-3.5 rounded-2xl font-bold transition duration-300 shadow-lg shadow-pink-500/20 btn-glow cursor-pointer mb-3">Copy Key</button>
-                <div class="text-center text-xs text-zinc-400 bg-zinc-900/50 border border-zinc-800 py-2.5 rounded-xl">
+                <div class="text-center text-xs text-zinc-400 bg-zinc-900/50 border border-zinc-800 py-2.5 rounded-xl mb-3">
                     ⏳ Expires in: <span id="countdown-timer" class="font-mono text-pink-400 font-bold">Calculating...</span>
                 </div>
+                <div class="text-[10px] text-zinc-500 mb-1.5">Your loader script (swap SLUG for the script you want — this hwid is what's bound to your key, don't hardcode anything else):</div>
+                <div class="bg-zinc-950 border border-zinc-800 p-3 rounded-xl font-mono text-[10px] text-zinc-300 mb-2 select-all break-all">${escapeHtml(loaderSnippet)}</div>
+                <button id="copy-loader-btn" class="w-full bg-zinc-800 hover:bg-zinc-700 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer text-zinc-200">Copy Loader Script</button>
             `;
             document.getElementById('copy-key-btn').addEventListener('click', () => {
                 navigator.clipboard.writeText(keyString);
                 showModal('Success', 'Key copied to clipboard successfully!');
+            });
+            document.getElementById('copy-loader-btn').addEventListener('click', () => {
+                navigator.clipboard.writeText(loaderSnippet);
+                showModal('Success', 'Loader script copied! Paste it into your executor.');
             });
 
             if (expiresAt) {
